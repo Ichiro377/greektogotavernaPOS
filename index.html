@@ -1719,22 +1719,54 @@ async function pushInventoryToSheets(){
 // Remove blank + duplicate rows from Google Sheets Inventory tab
 async function fixInventorySheet(){
   if(!SHEETS_URL){ showToast('No Sheet connected.','error'); return; }
-  if(!confirm('This will clean your Google Sheets Inventory tab by removing:\n\n• Blank rows (no item code, description, or category)\n• Duplicate item codes\n\nReal data is kept. Continue?')) return;
-  showToast('🔧 Cleaning Google Sheet…','info');
-  var res = await sheetsCall('cleanInventorySheet');
-  if(res && res.ok){
-    showToast('✅ Sheet cleaned! Removed '+res.removed+' blank/duplicate rows. '+res.kept+' real items remain.','success');
-    // Wait then re-import the clean data
-    setTimeout(function(){ importFromSheets(); }, 2000);
-  } else {
-    showToast('❌ Could not clean sheet.','error');
+  if(!confirm('Fix your Inventory Sheet?\n\nThis will:\n1. Pull ALL rows from Google Sheets\n2. Remove blank and duplicate rows locally\n3. Push clean data back to Sheet\n\nYour real inventory data is kept. Continue?')) return;
+
+  // STEP 1: Pull everything from Sheets (including blank rows)
+  showToast('🔧 Step 1/3 — Fetching data from Sheet…','info');
+  var res = await sheetsCall('getInventory');
+  if(!res || !res.items){
+    showToast('❌ Cannot reach Google Sheets. Check your connection.','error');
+    return;
   }
+  var totalRows = res.items.length;
+
+  // STEP 2: Filter locally — remove blank rows and duplicates
+  showToast('🔧 Step 2/3 — Removing '+totalRows+' rows (filtering blanks)…','info');
+  var seen = {};
+  var cleaned = [];
+  res.items.forEach(function(it, idx){
+    var norm = _normalizeInvItem(it, idx);
+    var code = (norm.itemCode||'').trim();
+    var desc = (norm.description||'').trim();
+    var cat  = (norm.category||'').trim();
+    // Skip completely blank rows
+    if(!code && !desc && !cat) return;
+    // Skip duplicates (keep first occurrence)
+    if(code && seen[code]) return;
+    if(code) seen[code] = true;
+    cleaned.push(norm);
+  });
+
+  // Re-assign IDs
+  cleaned = cleaned.map(function(i, idx){ i.id = idx+1; return i; });
+  var removed = totalRows - cleaned.length;
+
+  // Update local storage
+  stockInventory = cleaned;
+  _saveStockLocally();
+  renderInventory();
+
+  // STEP 3: Push only clean rows back to Sheet
+  showToast('🔧 Step 3/3 — Saving '+cleaned.length+' clean items to Sheet…','info');
+  await pushInventoryToSheets();
+
+  showToast('✅ Done! Removed '+removed+' blank rows. '+cleaned.length+' real items saved to Sheet.','success');
 }
 
 // ── Manual pull from Sheet — only runs when user taps Import button ──────────
 async function importFromSheets(){
   if(!SHEETS_URL){ showToast('No Sheet connected yet.','error'); return; }
-  if(!confirm('Import inventory from Google Sheets?\n\nThis will REPLACE your current '+stockInventory.length+' local items with the Sheet data.\n\nPOS Menu items are not affected.\n\nContinue?')) return;
+  if(!confirm('Import inventory from Google Sheets?\n\nThis will REPLACE your current '+stockInventory.length+' local items with Sheet data.\n\nPOS Menu is not affected.\n\nContinue?')) return;
   showToast('⬇ Importing from Sheets…','info');
   const res = await sheetsCall('getInventory');
   if(res && res.items && res.items.length){
