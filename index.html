@@ -1096,8 +1096,9 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
       <div style="font-size:11px;color:var(--gray-soft);margin-top:2px;">Independent from the POS Menu — items here don't affect what's orderable.</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <button class="add-btn" style="background:#5B7FBF" onclick="importFromSheets()" title="Pulls data FROM Google Sheets and replaces your local Inventory list — only runs when you tap this, never automatic">⬇ Import from Sheet</button>
-      <button class="add-btn" style="background:var(--success)" onclick="syncInventory()" title="Backs up this inventory list to Google Sheets — never pulls or overwrites">⬆ Backup to Sheet</button>
+      <button class="add-btn" style="background:#5B7FBF" onclick="importFromSheets()">⬇ Import from Sheet</button>
+      <button class="add-btn" style="background:var(--success)" onclick="syncInventory()">⬆ Backup to Sheet</button>
+      <button class="add-btn" style="background:#E65100" onclick="fixInventorySheet()" title="Remove blank and duplicate rows from Google Sheet">🔧 Fix Sheet</button>
       <button class="add-btn" onclick="openAddModal()">+ Add Item</button>
     </div>
   </div>
@@ -1427,7 +1428,9 @@ let stockInventory = (function(){
       if (Array.isArray(parsed) && parsed.length) {
         // Normalize on load — handles UPPERCASE, camelCase, and mixed formats
         var normalized = parsed.map(function(it,idx){ return _normalizeInvItem(it,idx); })
-                               .filter(function(i){ return i.itemCode||i.description; });
+                               .filter(function(i){
+                                 return (i.itemCode||'').trim()||(i.description||'').trim()||(i.category||'').trim();
+                               });
         try{ localStorage.setItem('gtg_stock_inventory', JSON.stringify(normalized)); }catch(e){}
         return normalized;
       }
@@ -1453,9 +1456,12 @@ function _normalizeInvItem(it, idx){
 function _normalizeAndSaveInventory(items){
   stockInventory = items.map(function(it,idx){ return _normalizeInvItem(it,idx); })
                         .filter(function(i){
-                          // Keep item if ANY field has data — don't drop items just because
-                          // itemCode or description is empty
-                          return i.itemCode||i.description||i.category||i.price>0||i.uom||i.supplier;
+                          // Keep only rows that have itemCode OR description OR category
+                          // This removes the blank 0,0,0 rows from corrupted sheets
+                          var hasCode = (i.itemCode||'').trim().length > 0;
+                          var hasDesc = (i.description||'').trim().length > 0;
+                          var hasCat  = (i.category||'').trim().length > 0;
+                          return hasCode || hasDesc || hasCat;
                         });
   _saveStockLocally();
 }
@@ -1677,27 +1683,52 @@ async function loadInventoryFromSheets(){
   }
 }
 async function syncInventory(){
-  showToast('⬆ Backing up to Sheet…','info');
-  if(SHEETS_URL){ await pushInventoryToSheets(); showToast('✅ Backed up to Google Sheets!','success'); }
-  else { showToast('No Sheet connected yet.','error'); }
+  if(!SHEETS_URL){ showToast('No Sheet connected.','error'); return; }
+  await pushInventoryToSheets();
 }
+
 async function pushInventoryToSheets(){
   if(!SHEETS_URL) return;
-  if(!stockInventory.length){ showToast('Nothing to backup — inventory is empty.','error'); return; }
-  function _v(it,keys){ for(var k=0;k<keys.length;k++){ var v=it[keys[k]]; if(v!==undefined&&v!==null&&v!=='') return v; } return ''; }
-  const rows = stockInventory.map(function(i){
+  // Only backup items that have at least a code, name, or category
+  var validItems = stockInventory.filter(function(i){
+    return (i.itemCode||'').trim() || (i.description||'').trim() || (i.category||'').trim();
+  });
+  if(!validItems.length){ showToast('No valid items to backup — add items first.','error'); return; }
+  showToast('⬆ Backing up '+validItems.length+' items…','info');
+  // Send with camelCase keys — Apps Script v7 maps to your sheet headers automatically
+  var rows = validItems.map(function(i){
     return {
-      itemCode:    _v(i,['itemCode','ITEM CODE','item_code']),
-      description: _v(i,['description','ITEM DESCRIPTION','name','Description']),
-      category:    _v(i,['category','CATEGORY','cat','Category']),
-      price:       parseFloat(_v(i,['price','PRICE','Price']))||0,
-      begBal:      parseInt(_v(i,['begBal','BEG BAL STOCKS','BEG BAL','beg_bal']))||0,
-      endingStock: parseInt(_v(i,['endingStock','ENDING STOCKS','ENDING','stock','STOCK']))||0,
-      uom:         _v(i,['uom','UOM','Uom','unit']),
-      supplier:    _v(i,['supplier','SUPPLIER','Supplier'])
+      itemCode:    String(i.itemCode    || i['ITEM CODE']        || '').trim(),
+      description: String(i.description || i['ITEM DESCRIPTION'] || i.name || '').trim(),
+      category:    String(i.category    || i['CATEGORY']         || i.cat  || '').trim(),
+      price:       parseFloat(i.price    || i['PRICE']           || 0) || 0,
+      begBal:      parseInt( i.begBal    || i['BEG BAL STOCKS']  || 0)  || 0,
+      endingStock: parseInt( i.endingStock|| i['ENDING STOCKS']  || 0)  || 0,
+      uom:         String(i.uom         || i['UOM']              || '').trim(),
+      supplier:    String(i.supplier    || i['SUPPLIER']          || '').trim()
     };
   });
-  await sheetsCall('saveInventory',{items:rows});
+  var res = await sheetsCall('saveInventory',{items:rows});
+  if(res && res.ok){
+    showToast('✅ Backed up '+rows.length+' items to Sheet!','success');
+  } else {
+    showToast('❌ Backup failed — check your connection.','error');
+  }
+}
+
+// Remove blank + duplicate rows from Google Sheets Inventory tab
+async function fixInventorySheet(){
+  if(!SHEETS_URL){ showToast('No Sheet connected.','error'); return; }
+  if(!confirm('This will clean your Google Sheets Inventory tab by removing:\n\n• Blank rows (no item code, description, or category)\n• Duplicate item codes\n\nReal data is kept. Continue?')) return;
+  showToast('🔧 Cleaning Google Sheet…','info');
+  var res = await sheetsCall('cleanInventorySheet');
+  if(res && res.ok){
+    showToast('✅ Sheet cleaned! Removed '+res.removed+' blank/duplicate rows. '+res.kept+' real items remain.','success');
+    // Wait then re-import the clean data
+    setTimeout(function(){ importFromSheets(); }, 2000);
+  } else {
+    showToast('❌ Could not clean sheet.','error');
+  }
 }
 
 // ── Manual pull from Sheet — only runs when user taps Import button ──────────
