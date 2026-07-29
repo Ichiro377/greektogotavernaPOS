@@ -779,7 +779,7 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
     <div class="order-footer">
       <div class="sum-row"><span>Subtotal</span><span id="st">₱0.00</span></div>
       <div class="sum-row disc" id="disc-row" style="display:none"><span id="disc-lbl">Discount</span><span id="disc-amt">-₱0.00</span></div>
-      <div class="sum-row"><span>VAT (12%)</span><span id="vat">₱0.00</span></div>
+
       <div class="sum-row total-row"><span>TOTAL</span><span id="ttl">₱0.00</span></div>
       <!-- Table # + Customer -->
       <div style="display:grid;grid-template-columns:120px 1fr;gap:6px;margin-bottom:6px;">
@@ -1349,7 +1349,6 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
       <hr class="r-div">
       <div class="r-line"><span>Subtotal</span><span id="r-sub"></span></div>
       <div class="r-line r-disc-line" id="r-disc-row" style="display:none"><span id="r-disc-lbl"></span><span id="r-disc-val"></span></div>
-      <div class="r-line"><span>VAT 12%</span><span id="r-vat"></span></div>
       <div class="r-line r-total-line"><span>TOTAL</span><span id="r-total"></span></div>
       <hr class="r-div">
       <div class="r-line r-paid">✅ <span id="r-method"></span></div>
@@ -2114,9 +2113,9 @@ function discLabel(){
   return 'Discount (-₱'+disc.value.toFixed(2)+')';
 }
 function updateTotals(sub){
-  const da=calcDisc(sub),net=sub-da,vat=net*0.12,tot=net+vat;
+  const da=calcDisc(sub),net=sub-da,tot=net;
   document.getElementById('st').textContent=`₱${sub.toFixed(2)}`;
-  document.getElementById('vat').textContent=`₱${vat.toFixed(2)}`;
+
   document.getElementById('ttl').textContent=`₱${tot.toFixed(2)}`;
   const dr=document.getElementById('disc-row');
   if(da>0){dr.style.display='flex';document.getElementById('disc-lbl').textContent=discLabel();document.getElementById('disc-amt').textContent=`-₱${da.toFixed(2)}`;}
@@ -2124,8 +2123,8 @@ function updateTotals(sub){
 }
 function getTotals(){
   const sub=order.reduce((s,o)=>s+parseFloat(o.price)*o.qty,0);
-  const da=calcDisc(sub),net=sub-da,vat=net*0.12;
-  return{sub,da,vat,tot:net+vat};
+  const da=calcDisc(sub),net=sub-da;
+  return{sub,da,vat:0,tot:net};
 }
 function clearOrder(){
   order=[]; disc={type:'pct',value:0,applied:false};
@@ -2201,11 +2200,11 @@ async function finalizePayment(method,gcashNum,gcashRef){
   const dateStr=new Date().toLocaleString('en-PH');
   pushSaleToSheets({orderNum:`#${ordNum}`,date:dateStr,customer:cust,cashier:activeCashier||'—',method,
     items:order.map(o=>({qty:o.qty,name:o.name})),
-    subtotal:sub.toFixed(2),discount:da.toFixed(2),discLabel:da>0?discLabel():'None',vat:vat.toFixed(2),total:tot.toFixed(2)});
+    subtotal:sub.toFixed(2),discount:da.toFixed(2),discLabel:da>0?discLabel():'None',vat:'0.00',total:tot.toFixed(2)});
   document.getElementById('r-date').textContent=dateStr;
   document.getElementById('r-items').innerHTML=order.map(o=>`<div class="r-line"><span>${o.qty}x ${o.name}</span><span>₱${(parseFloat(o.price)*o.qty).toFixed(2)}</span></div>`).join('');
   document.getElementById('r-sub').textContent=`₱${sub.toFixed(2)}`;
-  document.getElementById('r-vat').textContent=`₱${vat.toFixed(2)}`;
+
   document.getElementById('r-total').textContent=`₱${tot.toFixed(2)}`;
   const rdr=document.getElementById('r-disc-row');
   if(da>0){rdr.style.display='flex';document.getElementById('r-disc-lbl').textContent=discLabel();document.getElementById('r-disc-val').textContent=`-₱${da.toFixed(2)}`;}
@@ -2276,7 +2275,7 @@ function logDeliveryOrder(platform){
     subtotal: amt.toFixed(2),
     discount: comm.toFixed(2),
     discLabel: `${platformLabel} Commission (${rate}%)`,
-    vat: '0.00',
+    vat: '0.00',  // VAT removed
     total: net.toFixed(2)
   });
 
@@ -3222,46 +3221,142 @@ function doLogin(){
 /* ═══════════════════ BLUETOOTH PRINTER ═══════════════════ */
 var _btDevice = null;
 
+/* ── Device detection ──────────────────────────────────────── */
+function _isIOS(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+}
+function _isSafari(){
+  return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+}
+function _hasBluetooth(){
+  return typeof navigator.bluetooth !== 'undefined';
+}
+function _hasShare(){
+  return typeof navigator.share !== 'undefined';
+}
+
+/* ── Build the print modal buttons based on device ─────────── */
 function printReceipt(){
   if(!order.length){ showToast('No items in order to print.','error'); return; }
+
+  var container = document.getElementById('print-btn-container');
+  var hint      = document.getElementById('print-hint');
+  var status    = document.getElementById('bt-status-msg');
+  if(status) status.textContent = 'Choose a print method below.';
+
+  var isIOS     = _isIOS();
+  var hasBT     = _hasBluetooth();
+  var hasShare  = _hasShare();
+  var html      = '';
+  var hintLines = [];
+
+  if(isIOS){
+    /* ── iOS: No Web Bluetooth — offer AirPrint + Share ── */
+    html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBrowser()">🖨️ Print / AirPrint</button>';
+    html += '<button class="m-save" style="background:#007AFF;font-size:14px" onclick="shareReceipt()">📤 Share Receipt</button>';
+    hintLines.push('AirPrint: connects to any AirPrint‑compatible printer on your Wi‑Fi');
+    hintLines.push('Share: send receipt via WhatsApp, Messages, Email, or save as PDF');
+    hintLines.push('<span style="color:#FF9500;font-weight:700">⚠️ Bluetooth printing requires Chrome or Edge — not supported on iOS Safari</span>');
+  } else if(hasBT){
+    /* ── Chrome/Edge: Full BLE + Browser + Share ── */
+    html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBluetooth()">📶 Bluetooth Thermal Printer</button>';
+    html += '<button class="m-save" style="background:var(--blue-accent);font-size:14px" onclick="printBrowser()">🖥️ Print / Save as PDF</button>';
+    if(hasShare) html += '<button class="m-save" style="background:#555;font-size:14px" onclick="shareReceipt()">📤 Share Receipt</button>';
+    hintLines.push('Bluetooth: pair your ESC/POS thermal printer first in device Settings');
+    hintLines.push('Browser: print to any connected printer or save as PDF');
+  } else {
+    /* ── Firefox / other: No BLE ── */
+    html += '<button class="m-save" style="background:var(--blue-accent);font-size:14px" onclick="printBrowser()">🖥️ Print / Save as PDF</button>';
+    if(hasShare) html += '<button class="m-save" style="background:#555;font-size:14px" onclick="shareReceipt()">📤 Share Receipt</button>';
+    hintLines.push('Bluetooth printing requires Chrome or Edge browser');
+  }
+
+  if(container) container.innerHTML = html;
+  if(hint) hint.innerHTML = hintLines.join('<br>');
   openModal('bt-printer-modal');
 }
 
+/* ── Web Share API — works on iOS Safari 12.1+ ────────────── */
+async function shareReceipt(){
+  closeModal('bt-printer-modal');
+  var totals  = getTotals();
+  var custEl  = document.getElementById('cust-name');
+  var tableEl = document.getElementById('table-num');
+  var notesEl = document.getElementById('order-notes');
+  var cashier = (typeof activeCashier!=='undefined') ? activeCashier : '';
+  var lines   = [];
+  lines.push('═══════════════════════');
+  lines.push('  GREEK TO GO TAVERNA');
+  lines.push('═══════════════════════');
+  lines.push('Order #'+String(orderCount).padStart(4,'0'));
+  lines.push(new Date().toLocaleString('en-PH'));
+  if(tableEl && tableEl.value) lines.push('Table: '+tableEl.value);
+  if(custEl  && custEl.value)  lines.push('Customer: '+custEl.value);
+  if(cashier)                  lines.push('Cashier: '+cashier);
+  lines.push('───────────────────────');
+  order.forEach(function(o){
+    var name = o.name.padEnd(20,' ').slice(0,20);
+    var amt  = '₱'+parseFloat(o.price*o.qty).toFixed(2);
+    lines.push(name+'  x'+o.qty+'  '+amt);
+  });
+  lines.push('───────────────────────');
+  lines.push('Subtotal:    ₱'+totals.sub.toFixed(2));
+  if(totals.da>0) lines.push('Discount:   -₱'+totals.da.toFixed(2));
+  
+  lines.push('TOTAL:       ₱'+totals.tot.toFixed(2));
+  lines.push('═══════════════════════');
+  lines.push('Thank you! Come again.');
+  if(notesEl && notesEl.value) lines.push('Note: '+notesEl.value);
+
+  var text = lines.join('\n');
+  try {
+    if(navigator.share){
+      await navigator.share({ title:'Receipt - Greek To Go Taverna', text: text });
+    } else {
+      // Fallback: copy to clipboard
+      await navigator.clipboard.writeText(text);
+      showToast('Receipt copied to clipboard!','success');
+    }
+  } catch(e){
+    if(e.name!=='AbortError'){
+      showToast('Could not share receipt.','error');
+    }
+  }
+}
+
+/* ── Bluetooth ESC/POS (Chrome/Edge only) ──────────────────── */
 async function printBluetooth(){
   var el = document.getElementById('bt-status-msg');
-  if(!navigator.bluetooth){
-    el.textContent='Web Bluetooth not supported. Use Chrome or Edge on Android/Desktop.';
-    el.style.color='#E05050'; return;
+  if(!_hasBluetooth()){
+    if(el){ el.textContent='Bluetooth not supported in this browser. Use Chrome or Edge.'; el.style.color='#E05050'; }
+    return;
   }
   try {
-    el.textContent='Scanning for printer...'; el.style.color='var(--gray-soft)';
+    if(el){ el.textContent='Scanning for printer…'; el.style.color='var(--gray-soft)'; }
     var device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: false,
       filters:[
         {services:['000018f0-0000-1000-8000-00805f9b34fb']},
         {services:['49535343-fe7d-4ae5-8fa9-9fafd205e455']},
         {services:['0000ff00-0000-1000-8000-00805f9b34fb']}
       ]
     });
-    el.textContent='Connecting to '+device.name+'...';
-    var server = await device.gatt.connect();
+    if(el) el.textContent='Connecting to '+device.name+'…';
+    var server=await device.gatt.connect();
     var service=null, char=null;
     var sUUIDs=['000018f0-0000-1000-8000-00805f9b34fb','49535343-fe7d-4ae5-8fa9-9fafd205e455','0000ff00-0000-1000-8000-00805f9b34fb'];
     var cUUIDs=['00002af1-0000-1000-8000-00805f9b34fb','49535343-8841-43f4-a8d4-ecbe34729bb3','0000ff02-0000-1000-8000-00805f9b34fb'];
-    for(var si=0;si<sUUIDs.length&&!service;si++){
-      try{ service=await server.getPrimaryService(sUUIDs[si]); }catch(e){}
-    }
-    if(!service){ el.textContent='Printer service not found. Is the printer paired?'; el.style.color='#E05050'; return; }
-    for(var ci=0;ci<cUUIDs.length&&!char;ci++){
-      try{ char=await service.getCharacteristic(cUUIDs[ci]); }catch(e){}
-    }
-    if(!char){ el.textContent='Could not access printer channel.'; el.style.color='#E05050'; return; }
-    el.textContent='Printing...';
+    for(var si=0;si<sUUIDs.length&&!service;si++){ try{ service=await server.getPrimaryService(sUUIDs[si]); }catch(e){} }
+    if(!service){ if(el){ el.textContent='Printer not found. Is it paired and turned on?'; el.style.color='#E05050'; } return; }
+    for(var ci=0;ci<cUUIDs.length&&!char;ci++){ try{ char=await service.getCharacteristic(cUUIDs[ci]); }catch(e){} }
+    if(!char){ if(el){ el.textContent='Could not access printer write channel.'; el.style.color='#E05050'; } return; }
+    if(el) el.textContent='Printing…';
     await _sendESCPOS(char);
-    el.textContent='Printed successfully!'; el.style.color='#27AE60';
+    if(el){ el.textContent='✅ Printed successfully!'; el.style.color='#27AE60'; }
     setTimeout(function(){ closeModal('bt-printer-modal'); },1500);
   } catch(e){
-    el.textContent = e.name==='NotFoundError'?'No printer selected.':'Error: '+e.message;
-    el.style.color='#E05050';
+    if(el){ el.textContent = (e.name==='NotFoundError') ? 'No printer selected.' : 'Error: '+e.message; el.style.color='#E05050'; }
   }
 }
 
@@ -3286,7 +3381,7 @@ async function _sendESCPOS(char){
   t('--------------------------------');
   t('Subtotal:     \u20B1'+totals.sub.toFixed(2));
   if(totals.da>0) t('Discount:    -\u20B1'+totals.da.toFixed(2));
-  t('VAT (12%):    \u20B1'+totals.vat.toFixed(2));
+
   p([ESC,0x45,1]);
   t('TOTAL:        \u20B1'+totals.tot.toFixed(2));
   p([ESC,0x45,0]);
@@ -3319,7 +3414,7 @@ function printBrowser(){
     +'<hr><table><tr><th align="left">Item</th><th>Qty</th><th align="right">Amt</th></tr>'+rows+'</table><hr>'
     +'<table><tr><td>Subtotal</td><td></td><td align="right">&#8369;'+totals.sub.toFixed(2)+'</td></tr>'
     +disc
-    +'<tr><td>VAT 12%</td><td></td><td align="right">&#8369;'+totals.vat.toFixed(2)+'</td></tr>'
+
     +'<tr><td><b>TOTAL</b></td><td></td><td align="right"><b>&#8369;'+totals.tot.toFixed(2)+'</b></td></tr>'
     +'</table><hr><center>Thank you! Please come again.</center>'
     +'<script>window.onload=function(){window.print();window.onafterprint=function(){window.close()}}<\/script>'
@@ -3367,7 +3462,7 @@ finalizePayment = async function(method, gcashNum, gcashRef){
     items:     order.map(function(o){ return {name:o.name, qty:o.qty, price:o.price, cat:o.cat||''}; }),
     subtotal:  totals.sub,
     discount:  totals.da,
-    vat:       totals.vat,
+    vat:       0,
     total:     totals.tot
   };
   _addToSalesLog(saleRecord);
@@ -3488,14 +3583,14 @@ function renderReports(){
   var totalRev   = todaySales.reduce(function(s,o){ return s+o.total; },0);
   var totalOrds  = todaySales.length;
   var totalDisc  = todaySales.reduce(function(s,o){ return s+o.discount; },0);
-  var totalVat   = todaySales.reduce(function(s,o){ return s+o.vat; },0);
+
 
   // Cards
   document.getElementById('rpt-cards').innerHTML = [
     {lbl:'Orders Today',   val:totalOrds,             cls:''},
     {lbl:'Total Revenue',  val:'₱'+totalRev.toFixed(2), cls:''},
     {lbl:'Total Discount', val:'₱'+totalDisc.toFixed(2),cls:'stat-warn'},
-    {lbl:'VAT Collected',  val:'₱'+totalVat.toFixed(2), cls:''},
+    
   ].map(function(c){
     return '<div class="stat-card '+c.cls+'"><div class="stat-lbl">'+c.lbl+'</div><div class="stat-val">'+c.val+'</div></div>';
   }).join('');
@@ -3573,7 +3668,7 @@ async function sendEODReport(){
     totalOrders: todaySales.length,
     totalRevenue:totalRev.toFixed(2),
     totalDiscount:todaySales.reduce(function(s,o){ return s+o.discount; },0).toFixed(2),
-    totalVAT:    todaySales.reduce(function(s,o){ return s+o.vat; },0).toFixed(2),
+    totalVAT:    '0.00',
     cashier:     typeof activeCashier!=='undefined'?activeCashier:'—'
   };
   showToast('Sending EOD report…','info');
@@ -3769,14 +3864,8 @@ function stopKitchenClock(){ if(_kitchenClockTimer){ clearInterval(_kitchenClock
   <div class="modal" style="max-width:380px;width:95vw;">
     <h3>🖨️ Print Receipt</h3>
     <div id="bt-status-msg" style="font-size:13px;color:var(--gray-soft);margin:10px 0;text-align:center;">Choose a print method below.</div>
-    <div style="display:flex;flex-direction:column;gap:8px;margin:14px 0;">
-      <button class="m-save" style="background:#27AE60" onclick="printBluetooth()">📶 Print via Bluetooth</button>
-      <button class="m-save" style="background:var(--blue-accent)" onclick="printBrowser()">🖥️ Print via Browser (PDF)</button>
-    </div>
-    <div style="font-size:10px;color:var(--gray-soft);text-align:center;line-height:1.5;">
-      Bluetooth: Chrome/Edge only · requires paired thermal printer<br>
-      Browser: works on all devices · saves as PDF or prints
-    </div>
+    <div id="print-btn-container" style="display:flex;flex-direction:column;gap:8px;margin:14px 0;"></div>
+    <div id="print-hint" style="font-size:10px;color:var(--gray-soft);text-align:center;line-height:1.6;"></div>
     <div class="modal-actions" style="margin-top:14px">
       <button class="m-cancel" onclick="closeModal('bt-printer-modal')">Cancel</button>
     </div>
