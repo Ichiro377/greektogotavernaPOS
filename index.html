@@ -1426,42 +1426,55 @@ let stockInventory = (function(){
       var parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length) {
         // Normalize on load — handles UPPERCASE, camelCase, and mixed formats
-        var normalized = parsed.map(function(it,idx){ return _normalizeInvItem(it,idx); })
-                               .filter(function(i){
-                                 return (i.itemCode||'').trim()||(i.description||'').trim()||(i.category||'').trim();
-                               });
+        // Normalize on load — handles any field format
+        var normalized = [];
+        for(var i=0;i<parsed.length;i++){
+          var m = _mapInvItem(parsed[i],i);
+          if(m.itemCode||m.description||m.category) normalized.push(m);
+        }
         try{ localStorage.setItem('gtg_stock_inventory', JSON.stringify(normalized)); }catch(e){}
-        return normalized;
+        return normalized.length ? normalized : parsed;
       }
     }
   } catch(e) {}
   return [];
 })();
 function _saveStockLocally(){ try{ localStorage.setItem('gtg_stock_inventory', JSON.stringify(stockInventory)); }catch(e){} }
-function _normalizeInvItem(it, idx){
-  function g(keys){ for(var k=0;k<keys.length;k++){ var v=it[keys[k]]; if(v!==undefined&&v!==null&&String(v).trim()!==''&&String(v)!=='undefined') return String(v).trim(); } return ''; }
+function _mapInvItem(raw, idx){
+  // Handles UPPERCASE, camelCase, or any mixed field names from Google Sheets
+  function get(){
+    var keys = Array.prototype.slice.call(arguments);
+    for(var k=0;k<keys.length;k++){
+      var v = raw[keys[k]];
+      if(v!==undefined && v!==null){
+        var s = String(v).trim();
+        if(s!=='' && s!=='undefined' && s!=='null') return s;
+      }
+    }
+    return '';
+  }
   return {
-    id:          it.id || idx+1,
-    itemCode:    g(['itemCode','ITEM CODE','item_code']),
-    description: g(['description','ITEM DESCRIPTION','name','Description']),
-    category:    g(['category','CATEGORY','cat','Category']),
-    price:       parseFloat(g(['price','PRICE','Price']))||0,
-    begBal:      parseInt(g(['begBal','BEG BAL STOCKS','BEG BAL','beg_bal']))||0,
-    endingStock: parseInt(g(['endingStock','ENDING STOCKS','ENDING','ending_stock','stock','STOCK']))||0,
-    uom:         g(['uom','UOM','Uom','unit']),
-    supplier:    g(['supplier','SUPPLIER','Supplier'])
+    id:          raw.id || idx+1,
+    itemCode:    get('itemCode','ITEM CODE','item_code','ItemCode'),
+    description: get('description','ITEM DESCRIPTION','item_description','name','Description','NAME'),
+    category:    get('category','CATEGORY','cat','Category'),
+    price:       parseFloat(get('price','PRICE','Price')) || 0,
+    begBal:      parseInt(get('begBal','BEG BAL STOCKS','BEG BAL','beg_bal','Beg Bal')) || 0,
+    endingStock: parseInt(get('endingStock','ENDING STOCKS','ENDING','ending_stock','stock','STOCK')) || 0,
+    uom:         get('uom','UOM','Uom','unit','UNIT'),
+    supplier:    get('supplier','SUPPLIER','Supplier')
   };
 }
+// Keep old name as alias so nothing breaks
+function _normalizeInvItem(it,idx){ return _mapInvItem(it,idx); }
+
 function _normalizeAndSaveInventory(items){
-  stockInventory = items.map(function(it,idx){ return _normalizeInvItem(it,idx); })
-                        .filter(function(i){
-                          // Keep only rows that have itemCode OR description OR category
-                          // This removes the blank 0,0,0 rows from corrupted sheets
-                          var hasCode = (i.itemCode||'').trim().length > 0;
-                          var hasDesc = (i.description||'').trim().length > 0;
-                          var hasCat  = (i.category||'').trim().length > 0;
-                          return hasCode || hasDesc || hasCat;
-                        });
+  var result = [];
+  for(var i=0;i<items.length;i++){
+    var m = _mapInvItem(items[i],i);
+    if(m.itemCode || m.description || m.category) result.push(m);
+  }
+  stockInventory = result;
   _saveStockLocally();
 }
 
@@ -1690,22 +1703,16 @@ async function pushInventoryToSheets(){
   if(!SHEETS_URL) return;
   // Only backup items that have at least a code, name, or category
   var validItems = stockInventory.filter(function(i){
-    return (i.itemCode||'').trim() || (i.description||'').trim() || (i.category||'').trim();
+    var m = _mapInvItem(i,0);
+    return m.itemCode || m.description || m.category;
   });
   if(!validItems.length){ showToast('No valid items to backup — add items first.','error'); return; }
   showToast('⬆ Backing up '+validItems.length+' items…','info');
-  // Send with camelCase keys — Apps Script v7 maps to your sheet headers automatically
   var rows = validItems.map(function(i){
-    return {
-      itemCode:    String(i.itemCode    || i['ITEM CODE']        || '').trim(),
-      description: String(i.description || i['ITEM DESCRIPTION'] || i.name || '').trim(),
-      category:    String(i.category    || i['CATEGORY']         || i.cat  || '').trim(),
-      price:       parseFloat(i.price    || i['PRICE']           || 0) || 0,
-      begBal:      parseInt( i.begBal    || i['BEG BAL STOCKS']  || 0)  || 0,
-      endingStock: parseInt( i.endingStock|| i['ENDING STOCKS']  || 0)  || 0,
-      uom:         String(i.uom         || i['UOM']              || '').trim(),
-      supplier:    String(i.supplier    || i['SUPPLIER']          || '').trim()
-    };
+    var m = _mapInvItem(i,0);
+    return { itemCode:m.itemCode, description:m.description, category:m.category,
+             price:m.price, begBal:m.begBal, endingStock:m.endingStock,
+             uom:m.uom, supplier:m.supplier };
   });
   var res = await sheetsCall('saveInventory',{items:rows});
   if(res && res.ok){
@@ -1734,7 +1741,7 @@ async function fixInventorySheet(){
   var seen = {};
   var cleaned = [];
   res.items.forEach(function(it, idx){
-    var norm = _normalizeInvItem(it, idx);
+    var norm = _mapInvItem(it, idx);
     var code = (norm.itemCode||'').trim();
     var desc = (norm.description||'').trim();
     var cat  = (norm.category||'').trim();
@@ -1764,20 +1771,16 @@ async function fixInventorySheet(){
 
 // ── Manual pull from Sheet — only runs when user taps Import button ──────────
 async function importFromSheets(){
-  if(!SHEETS_URL){ showToast('No Sheet connected yet.','error'); return; }
-  if(!confirm('Import inventory from Google Sheets?\n\nThis will REPLACE your current '+stockInventory.length+' local items with Sheet data.\n\nPOS Menu is not affected.\n\nContinue?')) return;
-  showToast('⬇ Importing from Sheets…','info');
-  const res = await sheetsCall('getInventory');
-  if(res && res.items && res.items.length){
-    _normalizeAndSaveInventory(res.items);
-    renderInventory();
-    showToast('✅ Imported '+stockInventory.length+' of '+res.items.length+' item(s) from Sheet!','success');
-    if(res.items.length > stockInventory.length){ showToast((res.items.length-stockInventory.length)+' item(s) were skipped (completely empty rows).','warning'); }
-  } else if(res && res.items){
-    showToast('Sheet is empty — nothing to import.','error');
-  } else {
-    showToast('❌ Could not connect to Sheets. Try again.','error');
-  }
+  if(!SHEETS_URL){ showToast('No Sheet connected.','error'); return; }
+  if(!confirm('Import inventory from Google Sheets?\nThis replaces '+stockInventory.length+' local items.\n\nContinue?')) return;
+  showToast('⬇ Connecting to Google Sheets…','info');
+  var res = await sheetsCall('getInventory');
+  if(!res){ showToast('❌ Could not reach Google Sheets. Check your internet connection.','error'); return; }
+  if(!res.items || res.items.length===0){ showToast('⚠️ Sheet is empty. Add items in your Inventory tab in Google Sheets first.','error'); return; }
+  _normalizeAndSaveInventory(res.items);
+  renderInventory();
+  var skipped = res.items.length - stockInventory.length;
+  showToast('✅ Imported '+stockInventory.length+' items!'+(skipped>0?' ('+skipped+' blank rows skipped)':''),'success');
 }
 
 
@@ -2405,14 +2408,16 @@ function renderInventory(){
   }
   el.innerHTML = items.map(it=>{
     // Data is always normalized to camelCase by _normalizeInvItem
-    var iCode  = it.itemCode    || '—';
-    var iDesc  = it.description || '—';
-    var iCat   = it.category    || '—';
-    var iPrice = parseFloat(it.price||0);
-    var iBeg   = parseInt(it.begBal||0);
-    var iEnd   = parseInt(it.endingStock||0);
-    var iUom   = it.uom         || '—';
-    var iSupp  = it.supplier    || '—';
+    // Use _mapInvItem to ensure we always display correctly regardless of stored format
+    var mapped = _mapInvItem(it, 0);
+    var iCode  = mapped.itemCode    || '—';
+    var iDesc  = mapped.description || '—';
+    var iCat   = mapped.category    || '—';
+    var iPrice = mapped.price  || 0;
+    var iBeg   = mapped.begBal || 0;
+    var iEnd   = mapped.endingStock || 0;
+    var iUom   = mapped.uom      || '—';
+    var iSupp  = mapped.supplier || '—';
     const cls  = iEnd===0?'oos-cell':iEnd<=5?'low-cell':'';
     return `<tr>
       <td>${iCode||'—'}</td>
@@ -2805,6 +2810,7 @@ async function _initialSync(){
   if(invRes && invRes.items && invRes.items.length){
     _normalizeAndSaveInventory(invRes.items);
     renderInventory();
+    showToast('✅ Inventory loaded: '+stockInventory.length+' items','success');
   }
 
   // Step 3: POS Menu
@@ -3252,12 +3258,15 @@ function printReceipt(){
   var hintLines = [];
 
   if(isIOS){
-    /* ── iOS: No Web Bluetooth — offer AirPrint + Share ── */
-    html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBrowser()">🖨️ Print / AirPrint</button>';
-    html += '<button class="m-save" style="background:#007AFF;font-size:14px" onclick="shareReceipt()">📤 Share Receipt</button>';
-    hintLines.push('AirPrint: connects to any AirPrint‑compatible printer on your Wi‑Fi');
-    hintLines.push('Share: send receipt via WhatsApp, Messages, Email, or save as PDF');
-    hintLines.push('<span style="color:#FF9500;font-weight:700">⚠️ Bluetooth printing requires Chrome or Edge — not supported on iOS Safari</span>');
+    /* ── iOS: Xprinter XP-58IID via Xprinter App ── */
+    html += '<button class="m-save" style="background:#1a1a1a;font-size:14px" onclick="printViaXprinterApp()">🖨️ Print via Xprinter App</button>';
+    html += '<button class="m-save" style="background:#007AFF;font-size:14px" onclick="shareReceipt()">📤 Share Receipt (WhatsApp/Email)</button>';
+    html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBrowser()">📄 Save as PDF</button>';
+    hintLines.push('<strong>Xprinter XP-58IID detected</strong>');
+    hintLines.push('Step 1: Download <strong>"Xprinter"</strong> app from the App Store');
+    hintLines.push('Step 2: Pair XP-58IID in iPhone Bluetooth Settings');
+    hintLines.push('Step 3: Tap <strong>Print via Xprinter App</strong> above');
+    hintLines.push('<a href="https://apps.apple.com/app/xprinter/id1200042589" target="_blank" style="color:#007AFF;font-weight:700">📲 Download Xprinter App →</a>');
   } else if(hasBT){
     /* ── Chrome/Edge: Full BLE + Browser + Share ── */
     html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBluetooth()">📶 Bluetooth Thermal Printer</button>';
@@ -3278,6 +3287,64 @@ function printReceipt(){
 }
 
 /* ── Web Share API — works on iOS Safari 12.1+ ────────────── */
+/* ── Xprinter App (iOS) ─────────────────────────────────── */
+async function printViaXprinterApp(){
+  closeModal('bt-printer-modal');
+  var totals  = getTotals();
+  var tableEl = document.getElementById('table-num');
+  var custEl  = document.getElementById('cust-name');
+  var notesEl = document.getElementById('order-notes');
+  var cashier = (typeof activeCashier!=='undefined') ? activeCashier : '';
+
+  // Build plain-text receipt for Xprinter app
+  var lines = [];
+  lines.push('GREEK TO GO TAVERNA');
+  lines.push('========================');
+  lines.push('Order #'+String(orderCount).padStart(4,'0'));
+  lines.push(new Date().toLocaleString('en-PH'));
+  if(tableEl && tableEl.value)  lines.push('Table: '+tableEl.value);
+  if(custEl  && custEl.value)   lines.push('Customer: '+custEl.value);
+  if(cashier)                   lines.push('Cashier: '+cashier);
+  lines.push('------------------------');
+  order.forEach(function(o){
+    lines.push(o.name);
+    lines.push('  x'+o.qty+' @ P'+parseFloat(o.price).toFixed(2)+'  =  P'+parseFloat(o.price*o.qty).toFixed(2));
+  });
+  lines.push('------------------------');
+  lines.push('Subtotal:   P'+totals.sub.toFixed(2));
+  if(totals.da>0) lines.push('Discount:  -P'+totals.da.toFixed(2));
+  lines.push('TOTAL:      P'+totals.tot.toFixed(2));
+  lines.push('========================');
+  lines.push('Thank you! Come again.');
+  if(notesEl && notesEl.value) lines.push('Note: '+notesEl.value);
+  lines.push('');lines.push('');lines.push('');
+
+  var text = lines.join('\n');
+
+  // Try Web Share to Xprinter app
+  if(navigator.share){
+    try {
+      var file = new File([text], 'receipt.txt', {type:'text/plain'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title:'Receipt'});
+      } else {
+        await navigator.share({title:'Receipt - Greek To Go Taverna', text:text});
+      }
+      showToast('Receipt shared! Open in Xprinter app to print.','success');
+    } catch(e){
+      if(e.name!=='AbortError') showToast('Could not share. Try Save as PDF.','error');
+    }
+  } else {
+    // Fallback: copy to clipboard
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Receipt copied! Paste into Xprinter app to print.','success');
+    } catch(e){
+      showToast('Open Xprinter app and type the receipt manually.','error');
+    }
+  }
+}
+
 async function shareReceipt(){
   closeModal('bt-printer-modal');
   var totals  = getTotals();
