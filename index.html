@@ -851,7 +851,7 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
       <div class="pay-grid">
         <button class="pay-btn cash"  onclick="processPayment('Cash')">💵 Cash</button>
         <button class="pay-btn gcash" onclick="openGCash()">📱 GCash / QR</button>
-        <button class="pay-btn qrph"  onclick="openQRPH()">📷 QR / BPI</button>
+
       </div>
       <button class="clear-btn" onclick="clearOrder()">🗑 Clear Order</button>
     </div>
@@ -1353,6 +1353,18 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
       <hr class="r-div">
       <div class="r-line r-paid">✅ <span id="r-method"></span></div>
       <div id="r-gcash-ref" style="display:none;font-size:10px;color:var(--gray-soft);margin-top:1px;font-family:inherit"></div>
+      <div id="r-qr-section" style="margin-top:10px;text-align:center;">
+        <div style="font-size:10px;font-weight:bold;margin-bottom:5px;">SCAN TO PAY</div>
+        <div style="display:flex;justify-content:center;gap:10px;">
+          <div style="text-align:center;">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUoAAAFKAQAAAABTUiuoAAACAUlEQVR4nO2aTYrjMBCFvxoZslQgB8hR5JvNmXID+yg5wIC9DCi8Xkh2nB4Y3NO47UXVQhDzLR4UT/WjmFgZ/a+1JDjqqKOOOurolqjVaMpHa0ezcpiZWbu5AEdXRc1P6gDGC0b806i/5kaMIQNgWwpw9D/QsVpIHUGke4O1wMtvB9Lq6BxpeBr9Ne8mwNH1qLVjA4wN6nYR4Og/YrrnooAR1F9zY2m4FHMtZ+fdtTpas9WXTiJg6X6SAVi6PW17AY5+OVsvC6mUrJipfttagKNfQJEkkYZQDmkIkpQhSSIpF0Td7lodramokSnp6WI9Fohna390SgVQDAaTy7o4m86zdQy01C0jDhjxYaTbBfXngEGTxThXtd21Orr0FtSSVYpXF+vF6N46GJoGgJip0/EcvZ30jm4jwNFVUXtC5bq8KD6KuWRw0YG4t/ZHp5sw1ilLGqB0h0zf/CY8CjrPWxRv1U5Q01bX560joe/zlqYaNTmq/HJvHQp9vR1LA5DuJ0HpN8LUMR5Eq6PFPRqA/hxEf4Zat5hXu0fR6uj8dmy/9TBpeBq9mdXW/gcEOLoimk+/Nb2dZEu3M2LcWICj30CtJWh66Q+CKFn7gwIcXYHGun5SFx9W/pxRS5bXreOgLPt26r79bd6S7+APg/71dlyPsHg39h28o4466qijR0E/AGluV1SlYDpPAAAAAElFTkSuQmCC" style="width:80px;height:80px;border:1px solid #eee;"><br><span style="font-size:9px;">GCash</span>
+          </div>
+          <div style="text-align:center;">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUoAAAFKAQAAAABTUiuoAAAB/ElEQVR4nO2ay43dMAxFDyPtbWAKSClyZ6kpHdilTAfW8gEymAUl2wkSwDOAYwFDLt7z5ywuQJC6oizKxVi+XSXBUUcdddRRR+9EpUZEphztFnJ7PN0uwNFLEe0vzQD5DYWXKGwRCAUAuVOAo59Acy0hkTEoyxjMK4pI/D8CHP0EqjMgP9ZNHhLg6EfQ9B5ryqZnBDj672h9blAgg6S5IBAUMpz3zo9rdbSii4iIjAA5QlpBJjap7vB+AY5eCauto4TMEy7fX6K/V1YHWh2t+60pRyCLsIzHy00gR2S6XYCj10JVVWEokLSgugYlaQ3SGurl/LhWR6m5WIPqTHXwFknLfuXZ6gKttZW0oPOgVlakFVTXmjyvrV7QlgpC7XrzoFZlljdaBj1bHaBtTmgOsAA5FvYRIennPtR4XKujzWVwXrLas6A6D8U7YTfo7jI4ecLzCqbeCftBdwffUsZQsNXKYmhm3rPROC9oSVfsfaaW6jPTuu+N+UHMZzUmEYi5jEYD8VoBN9E4Bjn4cTW3x0plNrLasJ7KfnfSi9QujbXe8Qp0y2VQj6B+Ir1tdolZRm2AO/shbh1q/OioybtJGhJvA8PJvnrpD27zJZvD1K5rj534Bjl6JY5aBmXdt+620hv0oxdetLtC/nB3XYlIo6Onl41odddRRRx119BfLJkx6H1Z+hgAAAABJRU5ErkJggg==" style="width:80px;height:80px;border:1px solid #eee;"><br><span style="font-size:9px;">BPI</span>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:10px;font-weight:bold;color:var(--danger);margin-top:8px;">CREDIT CARD NOT AVAILABLE</div>
       <div class="r-line" style="margin-top:5px;font-size:10px;color:var(--gray-soft)">
         <span>Cashier: <span id="r-cashier">—</span></span><span id="r-ordnum"></span>
       </div>
@@ -1377,6 +1389,7 @@ let SHEETS_URL = SHEETS_URL_PERMANENT;
 // Sync to localStorage so existing connect-modal logic still works
 try{ localStorage.setItem('greektogo_sheets_url', SHEETS_URL); }catch(e){}
 // POS Menu loads exclusively from Google Sheets POS MENU CREATION tab — no defaults.
+// ── INVENTORY SYSTEM FINALIZED ──
 
 // ══════════════════════════════════════════════════════════════════════════
 // MENU and INVENTORY are two fully independent lists. Nothing you do to one
@@ -3483,7 +3496,16 @@ function printBrowser(){
     +disc
 
     +'<tr><td><b>TOTAL</b></td><td></td><td align="right"><b>&#8369;'+totals.tot.toFixed(2)+'</b></td></tr>'
-    +'</table><hr><center>Thank you! Please come again.</center>'
+    +'</table><hr>'
+    +'<div style="text-align:center;margin-top:10px;">'
+    +'<div style="font-size:10px;font-weight:bold;margin-bottom:5px;">SCAN TO PAY</div>'
+    +'<div style="display:flex;justify-content:center;gap:15px;margin-bottom:10px;">'
+    +'<div style="text-align:center;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUoAAAFKAQAAAABTUiuoAAACAUlEQVR4nO2aTYrjMBCFvxoZslQgB8hR5JvNmXID+yg5wIC9DCi8Xkh2nB4Y3NO47UXVQhDzLR4UT/WjmFgZ/a+1JDjqqKOOOurolqjVaMpHa0ezcpiZWbu5AEdXRc1P6gDGC0b806i/5kaMIQNgWwpw9D/QsVpIHUGke4O1wMtvB9Lq6BxpeBr9Ne8mwNH1qLVjA4wN6nYR4Og/YrrnooAR1F9zY2m4FHMtZ+fdtTpas9WXTiJg6X6SAVi6PW17AY5+OVsvC6mUrJipfttagKNfQJEkkYZQDmkIkpQhSSIpF0Td7lodramokSnp6WI9Fohna390SgVQDAaTy7o4m86zdQy01C0jDhjxYaTbBfXngEGTxThXtd21Orr0FtSSVYpXF+vF6N46GJoGgJip0/EcvZ30jm4jwNFVUXtC5bq8KD6KuWRw0YG4t/ZHp5sw1ilLGqB0h0zf/CY8CjrPWxRv1U5Q01bX560joe/zlqYaNTmq/HJvHQp9vR1LA5DuJ0HpN8LUMR5Eq6PFPRqA/hxEf4Zat5hXu0fR6uj8dmy/9TBpeBq9mdXW/gcEOLoimk+/Nb2dZEu3M2LcWICj30CtJWh66Q+CKFn7gwIcXYHGun5SFx9W/pxRS5bXreOgLPt26r79bd6S7+APg/71dlyPsHg39h28o4466qijR0E/AGluV1SlYDpPAAAAAElFTkSuQmCC" style="width:70px;height:70px;"><br><span style="font-size:9px;">GCash</span></div>'
+    +'<div style="text-align:center;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUoAAAFKAQAAAABTUiuoAAAB/ElEQVR4nO2ay43dMAxFDyPtbWAKSClyZ6kpHdilTAfW8gEymAUl2wkSwDOAYwFDLt7z5ywuQJC6oizKxVi+XSXBUUcdddRRR+9EpUZEphztFnJ7PN0uwNFLEe0vzQD5DYWXKGwRCAUAuVOAo59Acy0hkTEoyxjMK4pI/D8CHP0EqjMgP9ZNHhLg6EfQ9B5ryqZnBDj672h9blAgg6S5IBAUMpz3zo9rdbSii4iIjAA5QlpBJjap7vB+AY5eCauto4TMEy7fX6K/V1YHWh2t+60pRyCLsIzHy00gR2S6XYCj10JVVWEokLSgugYlaQ3SGurl/LhWR6m5WIPqTHXwFknLfuXZ6gKttZW0oPOgVlakFVTXmjyvrV7QlgpC7XrzoFZlljdaBj1bHaBtTmgOsAA5FvYRIennPtR4XKujzWVwXrLas6A6D8U7YTfo7jI4ecLzCqbeCftBdwffUsZQsNXKYmhm3rPROC9oSVfsfaaW6jPTuu+N+UHMZzUmEYi5jEYD8VoBN9E4Bjn4cTW3x0plNrLasJ7KfnfSi9QujbXe8Qp0y2VQj6B+Ir1tdolZRm2AO/shbh1q/OioybtJGhJvA8PJvnrpD27zJZvD1K5rj534Bjl6JY5aBmXdt+620hv0oxdetLtC/nB3XYlIo6Onl41odddRRRx119BfLJkx6H1Z+hgAAAABJRU5ErkJggg==" style="width:70px;height:70px;"><br><span style="font-size:9px;">BPI</span></div>'
+    +'</div>'
+    +'<div style="font-size:10px;font-weight:bold;color:#E05050;margin-bottom:10px;">CREDIT CARD NOT AVAILABLE</div>'
+    +'</div>'
+    +'<center>Thank you! Please come again.</center>'
     +'<script>window.onload=function(){window.print();window.onafterprint=function(){window.close()}}<\/script>'
     +'</body></html>';
   var w=window.open('','_blank','width=420,height=620');
@@ -3789,6 +3811,9 @@ function sendToKitchen(){
 
   kitchenOrders.push(ko);
   _saveKitchenOrders();
+  
+  // Sync to separate kitchen display via localStorage
+  localStorage.setItem('gtg_kitchen_sync', JSON.stringify(ko));
 
   // Push to Google Sheets in background
   if(SHEETS_URL) sheetsCall('addKitchenOrder',{order:ko});
