@@ -975,6 +975,7 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
       <button class="add-btn" style="background:#5B7FBF" onclick="importMenuFromSheets()" title="Pull POS MENU CREATION sheet into this tab">⬇ Import from Sheet</button>
       <button class="add-btn" style="background:var(--success)" onclick="backupMenuToSheets()" title="Push this menu list to POS MENU CREATION sheet">⬆ Backup to Sheet</button>
       <button class="add-btn" onclick="openAddMenuItemModal()">+ Add Menu Item</button>
+      <button class="add-btn" style="background:#6c3483" onclick="testMenuConnection()">🔍 Test Connection</button>
     </div>
   </div>
 
@@ -1965,6 +1966,59 @@ function deleteMenuItem(id){
 }
 
 // ── POS Menu ↔ Google Sheets (POS MENU CREATION tab) ─────────────────────────
+// ── DEBUG: Test what the Apps Script actually returns ────────────
+async function testMenuConnection(){
+  showToast('Testing connection…','info');
+  if(!SHEETS_URL){ alert('No SHEETS_URL configured.'); return; }
+
+  // Direct JSONP test
+  var cbName = 'dbg_'+Date.now();
+  var result  = null;
+  var script  = document.createElement('script');
+  var timer   = null;
+
+  await new Promise(function(resolve){
+    window[cbName] = function(data){
+      result = data;
+      clearTimeout(timer);
+      document.body.removeChild(script);
+      delete window[cbName];
+      resolve();
+    };
+    timer = setTimeout(function(){
+      document.body.removeChild(script);
+      delete window[cbName];
+      resolve();
+    }, 12000);
+    script.src = SHEETS_URL + '?action=getPosMenu&callback=' + cbName;
+    document.body.appendChild(script);
+  });
+
+  if(!result){
+    alert('❌ No response from Apps Script.\n\nCheck:\n1. Apps Script is deployed\n2. Access set to "Anyone"\n3. Internet connection');
+    return;
+  }
+
+  if(result.error){
+    alert('❌ Apps Script error:\n' + result.error + '\n\nYou may need to deploy a new version.');
+    return;
+  }
+
+  if(!result.items || result.items.length === 0){
+    alert('⚠️ Apps Script connected but returned 0 items.\n\nYour POS MENU CREATION sheet may be empty.\nAdd items in Google Sheets first.');
+    return;
+  }
+
+  // Show first item keys and values
+  var first = result.items[0];
+  var keys  = Object.keys(first);
+  var msg   = '✅ Connected! Got ' + result.items.length + ' item(s).\n\n';
+  msg += 'Column headers found:\n';
+  keys.forEach(function(k){ msg += '  "' + k + '" = "' + first[k] + '"\n'; });
+  msg += '\nIf you see MENU NAME and PRODUCT ID above, tap Import from Sheet.';
+  alert(msg);
+}
+
 async function backupMenuToSheets(){
   if(!SHEETS_URL) return;
   var rows = menuItems.map(function(i){ return { pid:i.pid||'', name:i.name||'', cat:i.cat||'', price:i.price||0, detail:i.detail||'' }; });
