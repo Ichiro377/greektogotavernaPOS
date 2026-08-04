@@ -1,4 +1,4 @@
-<!DOCTYPE html><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -75,7 +75,7 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
 .order-panel{width:375px;display:flex;flex-direction:column;background:#fff;box-shadow:-4px 0 24px rgba(11,37,69,0.09);}
 .order-header{padding:14px 16px 11px;background:var(--blue-deep);color:#fff;display:flex;justify-content:space-between;align-items:center;}
 .order-title{font-family:'Cinzel',serif;font-size:14px;font-weight:700;}
-
+.order-num{font-size:11px;color:var(--blue-light);font-weight:700;}
 .order-items{flex:1;overflow-y:auto;padding:11px;}
 .order-empty{text-align:center;padding:30px 20px;color:var(--gray-soft);}
 .order-empty .ei{font-size:42px;margin-bottom:7px;}
@@ -974,7 +974,6 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="add-btn" style="background:#5B7FBF" onclick="importMenuFromSheets()" title="Pull POS MENU CREATION sheet into this tab">⬇ Import from Sheet</button>
       <button class="add-btn" style="background:var(--success)" onclick="backupMenuToSheets()" title="Push this menu list to POS MENU CREATION sheet">⬆ Backup to Sheet</button>
-      <button class="add-btn" style="background:var(--danger)" onclick="clearMenuCacheAndReload()" title="Wipe the locally-cached menu and pull a completely fresh copy from Google Sheets">🗑 Clear Cache &amp; Reload</button>
       <button class="add-btn" onclick="openAddMenuItemModal()">+ Add Menu Item</button>
     </div>
   </div>
@@ -1991,14 +1990,12 @@ async function importMenuFromSheets(){
   var res = await sheetsCall('getPosMenu');
   if(res && res.items){
     menuItems = res.items.map(function(it, idx){
-      function g(keys){ for(var k=0;k<keys.length;k++){ var v=it[keys[k]]; if(v!==undefined&&v!==null&&v!==''&&String(v)!=='undefined') return String(v).trim(); } return ''; }
+      function g(keys){ for(var k=0;k<keys.length;k++){ var v=it[keys[k]]; if(v!==undefined&&v!==null&&v!==''&&String(v)!=='undefined') return v; } return ''; }
       return {
-        id:     idx + 1,
-        pid:    g(['pid','PID','PRODUCT ID','Product ID','product_id']),
-        name:   g(['name','NAME','MENU NAME','Menu Name','Item Name','ITEM NAME','item_name']),
-        cat:    g(['cat','CAT','category','CATEGORY','Category']),
-        price:  parseFloat(g(['price','PRICE','Price'])) || 0,
-        detail: g(['detail','DETAIL','Detail/Variant','detail_variant','Variant','VARIANT'])
+        id:    idx + 1,
+        name:  g(['name','NAME','Item Name','ITEM NAME','item_name']),
+        cat:   g(['cat','category','CATEGORY','Category']),
+        price: parseFloat(g(['price','PRICE','Price'])) || 0
       };
     }).filter(function(i){ return i.name||i.pid; });
     _saveMenuLocally();
@@ -2006,43 +2003,6 @@ async function importMenuFromSheets(){
     showToast('✅ Imported ' + menuItems.length + ' menu item(s) from Sheet!', 'success');
   } else {
     showToast('❌ Could not import — check your connection.','error');
-  }
-}
-
-// ── Force-clear the local menu cache and reload fresh from Google Sheets ──────
-async function clearMenuCacheAndReload(){
-  var ok = confirm(
-    'CLEAR LOCAL MENU CACHE\n\n' +
-    'This removes the locally-cached copy of your POS menu and pulls a fresh copy from your Google Sheet.\n\n' +
-    'Use this whenever menu changes you made in the HTML file or directly in the sheet are not appearing.\n\n' +
-    'Continue?'
-  );
-  if(!ok) return;
-  try{ localStorage.removeItem('gtg_menu_items'); } catch(e){}
-  menuItems = [];
-  renderCatTabs(); renderMenu(); renderPosMenu();
-  showToast('🗑 Local menu cache cleared. Fetching from Sheet…','info');
-  if(!SHEETS_URL){ showToast('⚠️ No Sheet connected. Menu is now empty — add items manually or connect a sheet.','warning'); return; }
-  var res = await sheetsCall('getPosMenu');
-  if(res && res.items && res.items.length){
-    menuItems = res.items.map(function(it, idx){
-      function g(keys){ for(var k=0;k<keys.length;k++){ var v=it[keys[k]]; if(v!==undefined&&v!==null&&v!==''&&String(v)!=='undefined') return String(v).trim(); } return ''; }
-      return {
-        id:     idx + 1,
-        pid:    g(['pid','PID','PRODUCT ID','Product ID','product_id']),
-        name:   g(['name','NAME','MENU NAME','Menu Name','Item Name','ITEM NAME','item_name']),
-        cat:    g(['cat','CAT','category','CATEGORY','Category']),
-        price:  parseFloat(g(['price','PRICE','Price'])) || 0,
-        detail: g(['detail','DETAIL','Detail/Variant','detail_variant','Variant','VARIANT'])
-      };
-    }).filter(function(i){ return i.name||i.pid; });
-    _saveMenuLocally();
-    renderCatTabs(); renderMenu(); renderPosMenu();
-    showToast('✅ Menu reloaded: ' + menuItems.length + ' item(s) from Google Sheets!', 'success');
-  } else if(res && res.items && res.items.length === 0){
-    showToast('⚠️ Sheet POS MENU CREATION tab is empty — add items there first.','warning');
-  } else {
-    showToast('❌ Could not reach Google Sheets — check your connection.','error');
   }
 }
 
