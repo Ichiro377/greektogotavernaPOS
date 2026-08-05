@@ -1507,11 +1507,14 @@ function showTab(tab, btn) {
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(tab+'-view').classList.add('active');
   btn.classList.add('active');
-  if(tab==='inventory')  renderInventory();
-  if(tab==='pos-menu')   renderPosMenu();
-  if(tab==='grab')    { renderDeliveryStats('grab');  renderDeliveryTable('grab');  setNow('grab-dt');  }
-  if(tab==='cashier') { renderCashierRoster(); renderShiftLog(); }
-  if(tab==='reports') renderReports();
+  if(tab==='pos')       { renderCatTabs(); renderMenu(); }
+  if(tab==='inventory')   renderInventory();
+  if(tab==='pos-menu')    renderPosMenu();
+  if(tab==='grab')      { renderDeliveryStats('grab'); renderDeliveryTable('grab'); setNow('grab-dt'); }
+  if(tab==='cashier')   { renderCashierRoster(); renderShiftLog(); }
+  if(tab==='reports')     renderReports();
+  if(tab==='kitchen')   { refreshKitchen(); startKitchenAutoRefresh(); startKitchenClock(); }
+  else                  { stopKitchenAutoRefresh(); stopKitchenClock(); }
 }
 
 /* ═══════════════════ SHEETS CONNECTION ENGINE ═══════════════════
@@ -1852,7 +1855,15 @@ function renderMenu(search=''){
   if(currentCat!=='All') items=items.filter(i=>i.cat===currentCat);
   if(search) items=items.filter(i=>(i.name||'').toLowerCase().includes(search.toLowerCase()));
   const grid=document.getElementById('menu-grid');
-  if(!items.length){grid.innerHTML=`<div class="loading-grid"><p>${menuItems.length===0?'POS Menu is empty — go to POS Menu tab and tap ⬇ Import from Sheet.':'No items in this category.'}</p></div>`;return;}
+  if(!items.length){
+    grid.innerHTML='<div class="loading-grid" style="text-align:center;padding:40px 20px;color:#888;">'
+      +'<div style="font-size:40px;margin-bottom:12px">🍽️</div>'
+      +(menuItems.length===0
+        ? '<p style="font-weight:700">No menu items yet.</p><p style="font-size:12px;margin-top:6px">Go to <strong>POS Menu tab</strong> → tap <strong>⬇ Import from Sheet</strong></p>'
+        : '<p>No items in this category.</p>')
+      +'</div>';
+    return;
+  }
   grid.innerHTML=items.map(it=>`
     <div class="menu-item" onclick="addToOrder(${it.id})">
       <div class="item-name">${it.name}</div>
@@ -1951,8 +1962,9 @@ function saveMenuItem(){
   }
   closeModal('menu-item-modal');
   _saveMenuLocally();
-  backupMenuToSheets();
   renderCatTabs(); renderMenu(); renderPosMenu();
+  // Backup to Sheets in background (non-blocking)
+  backupMenuToSheets();
 }
 
 function deleteMenuItem(id){
@@ -2020,9 +2032,17 @@ async function testMenuConnection(){
 }
 
 async function backupMenuToSheets(){
-  if(!SHEETS_URL) return;
-  var rows = menuItems.map(function(i){ return { pid:i.pid||'', name:i.name||'', cat:i.cat||'', price:i.price||0, detail:i.detail||'' }; });
-  await sheetsCall('savePosMenu', {items: rows});
+  if(!SHEETS_URL){ showToast('No Sheet connected — saved locally only.','warning'); return; }
+  if(!menuItems.length){ showToast('No menu items to save.','error'); return; }
+  var rows = menuItems.map(function(i){
+    return { pid:i.pid||'', name:i.name||'', cat:i.cat||'', price:i.price||0, detail:i.detail||'' };
+  });
+  var res = await sheetsCall('savePosMenu', {items:rows});
+  if(res && res.ok){
+    showToast('✅ POS Menu saved to Google Sheets! ('+rows.length+' items)','success');
+  } else {
+    showToast('⚠️ Saved locally. Sheet update failed — check connection.','warning');
+  }
 }
 
 async function importMenuFromSheets(){
@@ -2057,9 +2077,7 @@ async function importMenuFromSheets(){
   showToast('✅ Imported '+menuItems.length+' menu items from Sheet!','success');
 }
 
-// Auto-backup to Sheet whenever a menu item is saved
-var _origSaveMenuItem = saveMenuItem;
-// (backup is called inside saveMenuItem via backupMenuToSheets below)
+
 
 /* ═══════════════════ ORDER ═══════════════════ */
 function addToOrder(id){
@@ -3811,15 +3829,7 @@ async function sendEODReport(){
   else   showToast('❌ Could not send report. Check connection.','error');
 }
 
-/* ── Wire showTab to renderReports ─────────────────────────── */
-var _origShowTab = showTab;
-showTab = function(tab, btn){
-  _origShowTab.call(this, tab, btn);
-  if(tab==='reports') renderReports();
-  if(tab==='kitchen'){ refreshKitchen(); startKitchenAutoRefresh(); startKitchenClock(); }
-  else { stopKitchenAutoRefresh(); stopKitchenClock(); }
-};
-/* ════════════════════════════════════════════════════════════ */
+/* showTab is fully defined above — no override needed */
 
 
 /* ═══════════════════════════════════════════════════════════
