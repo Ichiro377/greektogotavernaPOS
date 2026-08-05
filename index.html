@@ -1099,7 +1099,8 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <button class="add-btn" style="background:#5B7FBF" onclick="importFromSheets()">⬇ Import from Sheet</button>
       <button class="add-btn" style="background:var(--success)" onclick="syncInventory()">⬆ Backup to Sheet</button>
-      <button class="add-btn" style="background:#E65100" onclick="fixInventorySheet()" title="Remove blank and duplicate rows from Google Sheet">🔧 Fix Sheet</button>
+      <button class="add-btn" style="background:#E65100" onclick="fixInventorySheet()">🔧 Fix Sheet</button>
+      <button class="add-btn" style="background:#6c3483" onclick="testSheetConnection()">🔍 Test</button>
       <button class="add-btn" onclick="openAddModal()">+ Add Item</button>
     </div>
   </div>
@@ -1703,26 +1704,28 @@ async function syncInventory(){
   await pushInventoryToSheets();
 }
 
-async function pushInventoryToSheets(){
-  if(!SHEETS_URL) return;
-  // Only backup items that have at least a code, name, or category
+async function pushInventoryToSheets(silent){
+  if(!SHEETS_URL){
+    if(!silent) showToast('⚠️ No Sheet connected — saved locally only.','warning');
+    return;
+  }
   var validItems = stockInventory.filter(function(i){
     var m = _mapInvItem(i,0);
     return m.itemCode || m.description || m.category;
   });
-  if(!validItems.length){ showToast('No valid items to backup — add items first.','error'); return; }
-  showToast('⬆ Backing up '+validItems.length+' items…','info');
+  if(!validItems.length){ return; }
   var rows = validItems.map(function(i){
     var m = _mapInvItem(i,0);
     return { itemCode:m.itemCode, description:m.description, category:m.category,
              price:m.price, begBal:m.begBal, endingStock:m.endingStock,
              uom:m.uom, supplier:m.supplier };
   });
+  if(!silent) showToast('⬆ Syncing '+rows.length+' items to Sheet…','info');
   var res = await sheetsCall('saveInventory',{items:rows});
   if(res && res.ok){
-    showToast('✅ Backed up '+rows.length+' items to Sheet!','success');
+    showToast('✅ Inventory saved to Google Sheets! ('+rows.length+' items)','success');
   } else {
-    showToast('❌ Backup failed — check your connection.','error');
+    showToast('⚠️ Saved locally. Not synced to Sheet — check connection.','warning');
   }
 }
 
@@ -1963,8 +1966,10 @@ function saveMenuItem(){
   closeModal('menu-item-modal');
   _saveMenuLocally();
   renderCatTabs(); renderMenu(); renderPosMenu();
-  // Backup to Sheets in background (non-blocking)
-  backupMenuToSheets();
+  showToast(pmEditingId ? '✅ Menu item updated!' : '✅ Menu item added!','success');
+  // Try to sync to Sheets if online
+  if(SHEETS_URL && _sheetsOnline) backupMenuToSheets();
+  else if(SHEETS_URL && !_sheetsOnline) showToast('⚠️ Saved locally. Sheets offline — tap status bar for help.','warning');
 }
 
 function deleteMenuItem(id){
@@ -1972,12 +1977,59 @@ function deleteMenuItem(id){
   menuItems = menuItems.filter(i=>i.id!==id);
   order = order.filter(o=>o.id!==id);
   _saveMenuLocally();
+  renderCatTabs(); renderMenu(); renderPosMenu();
+  showToast('Item removed from POS Menu.','success');
   backupMenuToSheets();
   renderCatTabs(); renderMenu(); renderPosMenu();
   showToast('Menu item removed.','success');
 }
 
 // ── POS Menu ↔ Google Sheets (POS MENU CREATION tab) ─────────────────────────
+// ── Universal connection test ─────────────────────────────────────────────────
+async function testSheetConnection(){
+  if(!SHEETS_URL){ alert('No SHEETS_URL in the HTML.'); return; }
+  showToast('Testing connection…','info');
+  var msg = '🔍 GREEK TO GO POS — Connection Test\n';
+  msg += '═'.repeat(35) + '\n';
+
+  // Test 1: ping
+  var ping = await _call(SHEETS_URL, 'ping', {});
+  msg += '\n1. PING: ' + (ping && ping.ok ? '✅ OK (v'+( ping.v||'?')+')' : '❌ FAILED');
+
+  // Test 2: getPosMenu
+  var menu = await _call(SHEETS_URL, 'getPosMenu', {});
+  msg += '\n2. GET MENU: ' + (menu && menu.items ? '✅ '+menu.items.length+' item(s)' : '❌ FAILED');
+  if(menu && menu.items && menu.items.length){
+    var keys = Object.keys(menu.items[0]);
+    msg += '\n   Keys: ' + keys.join(', ');
+  }
+
+  // Test 3: getInventory
+  var inv = await _call(SHEETS_URL, 'getInventory', {});
+  msg += '\n3. GET INVENTORY: ' + (inv && inv.items ? '✅ '+inv.items.length+' item(s)' : '❌ FAILED');
+
+  // Test 4: savePosMenu (test write)
+  var testItem = [{pid:'TEST-999', name:'__TEST_ITEM__', cat:'TEST', price:0, detail:''}];
+  var save = await _call(SHEETS_URL, 'savePosMenu', {items: (menu&&menu.items?[...menu.items.slice(0,3), ...testItem]:testItem)});
+  if(save && save.ok){
+    // Clean up — restore original menu
+    if(menu && menu.items && menu.items.length){
+      await _call(SHEETS_URL, 'savePosMenu', {items: menu.items});
+    }
+    msg += '\n4. SAVE TEST: ✅ Write works!';
+  } else {
+    msg += '\n4. SAVE TEST: ❌ '+(save&&save.error ? save.error : 'Failed — may need to redeploy Apps Script');
+  }
+
+  msg += '\n\n' + '═'.repeat(35);
+  if(ping && ping.ok && menu && save && save.ok){
+    msg += '\n✅ ALL TESTS PASSED — Sheets is working!';
+  } else {
+    msg += '\n⚠️ Some tests failed. Check:\n• Apps Script deployed with "Anyone" access\n• Deploy → New version after each change';
+  }
+  alert(msg);
+}
+
 // ── DEBUG: Test what the Apps Script actually returns ────────────
 async function testMenuConnection(){
   showToast('Testing connection…','info');
@@ -2573,13 +2625,18 @@ async function saveItem(){
   closeModal('item-modal');
   _saveStockLocally();
   renderInventory();
+  showToast(editingId ? '✅ Item updated!' : '✅ Item added!','success');
+  // Try to sync to Sheets (silent fail if offline)
+  if(SHEETS_URL && _sheetsOnline) pushInventoryToSheets(true);
+  else if(SHEETS_URL && !_sheetsOnline) showToast('⚠️ Saved locally. Sheets offline — tap status bar for help.','warning');
 }
 function deleteItem(id){
   if(!confirm('Delete this item?')) return;
   stockInventory=stockInventory.filter(i=>i.id!==id);
   _saveStockLocally();
   renderInventory();
-  showToast('Item deleted. Tap ⬆ Backup to Sheet when ready.','success');
+  showToast('Item deleted. Syncing to Sheet…','success');
+  pushInventoryToSheets();
 }
 
 /* ═══════════════════ CASHIER PIN MANAGER ═══════════════════ */
@@ -2882,6 +2939,7 @@ async function _initialSync(){
   // Connected — mark online and fetch all data
   _sheetsOnline = true;
   setDBStatus('loading','Syncing…');
+  showToast('✅ Connected to Google Sheets. Loading data…','success');
 
   function _g(it,keys){ for(var k=0;k<keys.length;k++){ var v=it[keys[k]]; if(v!==undefined&&v!==null&&v!==''&&String(v)!=='undefined') return v; } return ''; }
 
@@ -3343,15 +3401,24 @@ function printReceipt(){
   var hintLines = [];
 
   if(isIOS){
-    /* ── iOS: Xprinter XP-58IID via Xprinter App ── */
-    html += '<button class="m-save" style="background:#1a1a1a;font-size:14px" onclick="printViaXprinterApp()">🖨️ Print via Xprinter App</button>';
-    html += '<button class="m-save" style="background:#007AFF;font-size:14px" onclick="shareReceipt()">📤 Share Receipt (WhatsApp/Email)</button>';
-    html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBrowser()">📄 Save as PDF</button>';
-    hintLines.push('<strong>Xprinter XP-58IID detected</strong>');
-    hintLines.push('Step 1: Download <strong>"Xprinter"</strong> app from the App Store');
-    hintLines.push('Step 2: Pair XP-58IID in iPhone Bluetooth Settings');
-    hintLines.push('Step 3: Tap <strong>Print via Xprinter App</strong> above');
-    hintLines.push('<a href="https://apps.apple.com/app/xprinter/id1200042589" target="_blank" style="color:#007AFF;font-weight:700">📲 Download Xprinter App →</a>');
+    /* ── iOS: Check if Bluefy (Web Bluetooth enabled) ── */
+    if(hasBT){
+      /* Running in Bluefy — direct BLE printing works! */
+      html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBluetooth()">🖨️ Print Direct (Bluetooth)</button>';
+      html += '<button class="m-save" style="background:#555;font-size:14px" onclick="shareReceipt()">📤 Share Receipt</button>';
+      hintLines.push('✅ Direct Bluetooth printing enabled via Bluefy');
+      hintLines.push('Make sure Xprinter XP-58IID is paired in iPhone Settings → Bluetooth');
+    } else {
+      /* Safari — no Web Bluetooth. Show Bluefy option */
+      html += '<button class="m-save" style="background:#0B5ED7;font-size:15px;padding:14px" onclick="openBluefy()">🖨️ Print Direct via Bluefy</button>';
+      html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBrowser()">📄 Save as PDF / AirPrint</button>';
+      html += '<button class="m-save" style="background:#555;font-size:14px" onclick="shareReceipt()">📤 Share Receipt</button>';
+      hintLines.push('<strong style="color:#0B5ED7">🔵 Bluefy = Direct Bluetooth printing on iPhone (like GrabFood)</strong>');
+      hintLines.push('Step 1: Download <strong>Bluefy</strong> from App Store (free)');
+      hintLines.push('Step 2: Open your POS in Bluefy browser');
+      hintLines.push('Step 3: Tap Print → Bluetooth → connects direct to XP-58IID');
+      hintLines.push('<a href="https://apps.apple.com/app/bluefy-ble-web-browser/id1492822055" target="_blank" style="color:#0B5ED7;font-weight:800;font-size:13px">📲 Download Bluefy Free →</a>');
+    }
   } else if(hasBT){
     /* ── Chrome/Edge: Full BLE + Browser + Share ── */
     html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBluetooth()">📶 Bluetooth Thermal Printer</button>';
@@ -3372,7 +3439,25 @@ function printReceipt(){
 }
 
 /* ── Web Share API — works on iOS Safari 12.1+ ────────────── */
-/* ── Xprinter App (iOS) ─────────────────────────────────── */
+/* ── Open POS in Bluefy browser for direct BLE printing ─── */
+function openBluefy(){
+  closeModal('bt-printer-modal');
+  var posUrl = window.location.href;
+  // Try to open in Bluefy via URL scheme
+  var bluefyUrl = 'bluefy://?url=' + encodeURIComponent(posUrl);
+  var storeUrl  = 'https://apps.apple.com/app/bluefy-ble-web-browser/id1492822055';
+  // Try Bluefy URL scheme first, fall back to App Store
+  var win = window.open(bluefyUrl, '_blank');
+  setTimeout(function(){
+    if(!win || win.closed){
+      if(confirm('Bluefy not installed.\n\nOpen App Store to download it?\n\n(Free download — enables direct Bluetooth printing)')){
+        window.open(storeUrl, '_blank');
+      }
+    }
+  }, 1500);
+}
+
+/* ── Xprinter App (iOS) — kept as fallback ──────────────── */
 async function printViaXprinterApp(){
   closeModal('bt-printer-modal');
   var totals  = getTotals();
