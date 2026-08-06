@@ -741,6 +741,7 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
     <button class="nav-btn"             onclick="showTab('kitchen',this)">🍳 Kitchen</button>
   </nav>
   <div class="header-right">
+    <div id="sync-error-badge" onclick="showSyncErrors()" style="display:none;cursor:pointer;background:#E74C3C;color:#fff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800;margin-right:2px;">⚠️ <span id="sync-error-count">0</span> Error(s)</div>
     <div class="db-status loading" id="db-status"><div class="db-dot"></div><span id="db-status-txt">Connecting…</span></div>
     <div class="cashier-badge" id="active-cashier">👤 No Cashier</div>
     <div class="clock" id="clock">--:--:--</div>
@@ -889,6 +890,20 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
   <div style="background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-card);padding:18px;">
     <div style="font-weight:800;font-size:14px;color:var(--blue-deep);margin-bottom:12px;">📋 Today's Orders</div>
     <div id="rpt-orders" style="overflow-x:auto;"></div>
+  </div>
+</div>
+
+<!-- SYNC ERRORS MODAL -->
+<div class="modal-overlay" id="sync-errors-modal" onclick="if(event.target===this)closeModal('sync-errors-modal')">
+  <div class="modal" style="max-width:480px;width:95vw;">
+    <h3>⚠️ Sync Errors</h3>
+    <div style="font-size:12px;color:var(--gray-soft);margin-bottom:12px">These items failed to save to Google Sheets. Fix the connection then tap Retry All.</div>
+    <div id="sync-error-list" style="max-height:320px;overflow-y:auto;margin:12px 0;"></div>
+    <div class="modal-actions">
+      <button class="m-save" onclick="retryAllSyncErrors()">🔄 Retry All</button>
+      <button class="m-cancel" onclick="clearSyncErrors()">🗑 Clear All</button>
+      <button class="m-cancel" onclick="closeModal('sync-errors-modal')">Close</button>
+    </div>
   </div>
 </div>
 
@@ -1725,7 +1740,7 @@ async function pushInventoryToSheets(silent){
   if(res && res.ok){
     showToast('✅ Inventory saved to Google Sheets! ('+rows.length+' items)','success');
   } else {
-    showToast('⚠️ Saved locally. Not synced to Sheet — check connection.','warning');
+    _addSyncError('Inventory','saveInventory','Failed to save '+rows.length+' inventory items to Sheet',{items:rows});
   }
 }
 
@@ -1792,7 +1807,13 @@ async function importFromSheets(){
 
 
 async function pushStockUpdate(updates){ if(SHEETS_URL) await sheetsCall('updateStock',{updates}); }
-async function pushSaleToSheets(s){ if(SHEETS_URL) await sheetsCall('logSale',{sale:s}); }
+async function pushSaleToSheets(s){
+  if(!SHEETS_URL) return;
+  var res = await sheetsCall('logSale',{sale:s});
+  if(!res || !res.ok){
+    _addSyncError('Sales Log','logSale','Order #'+(s.orderNum||'?')+' failed to log in Sheet',{sale:s});
+  }
+}
 async function pushShiftToSheets(e){ if(SHEETS_URL) await sheetsCall('logShift',{entry:e}); }
 
 function setDBStatus(state,txt){
@@ -2093,7 +2114,7 @@ async function backupMenuToSheets(){
   if(res && res.ok){
     showToast('✅ POS Menu saved to Google Sheets! ('+rows.length+' items)','success');
   } else {
-    showToast('⚠️ Saved locally. Sheet update failed — check connection.','warning');
+    _addSyncError('POS Menu','savePosMenu','Failed to save '+rows.length+' menu items to Sheet',{items:rows});
   }
 }
 
@@ -2939,6 +2960,7 @@ async function _initialSync(){
   // Connected — mark online and fetch all data
   _sheetsOnline = true;
   setDBStatus('loading','Syncing…');
+  _syncErrors = []; _saveSyncErrors(); _updateSyncBadge(); // Clear old errors on successful reconnect
   showToast('✅ Connected to Google Sheets. Loading data…','success');
 
   function _g(it,keys){ for(var k=0;k<keys.length;k++){ var v=it[keys[k]]; if(v!==undefined&&v!==null&&v!==''&&String(v)!=='undefined') return v; } return ''; }
@@ -4083,6 +4105,120 @@ var _kitchenClockTimer = null;
 function startKitchenClock(){ _kitchenClockTimer = setInterval(function(){ if(document.getElementById('kitchen-view').classList.contains('active')) renderKitchen(); }, 10000); }
 function stopKitchenClock(){ if(_kitchenClockTimer){ clearInterval(_kitchenClockTimer); _kitchenClockTimer=null; } }
 
+/* ═══════════════════════════════════════════════════════════ */
+
+
+/* ═══════════════════════════════════════════════════════════
+   SYNC ERROR TRACKING — shows what failed to save to Sheets
+   ═══════════════════════════════════════════════════════════ */
+var _syncErrors = (function(){
+  try{ var s=localStorage.getItem('gtg_sync_errors'); if(s) return JSON.parse(s)||[]; }catch(e){}
+  return [];
+})();
+
+function _saveSyncErrors(){ try{ localStorage.setItem('gtg_sync_errors',JSON.stringify(_syncErrors.slice(-50))); }catch(e){} }
+
+function _addSyncError(tab, action, detail, data){
+  var err = {
+    id:     Date.now(),
+    time:   new Date().toLocaleString('en-PH'),
+    tab:    tab,
+    action: action,
+    detail: detail,
+    data:   data||null,
+    retries:0
+  };
+  _syncErrors.push(err);
+  _saveSyncErrors();
+  _updateSyncBadge();
+  showToast('⚠️ '+tab+': '+detail+' — tap red badge to retry','warning');
+}
+
+function _updateSyncBadge(){
+  var badge = document.getElementById('sync-error-badge');
+  var count = document.getElementById('sync-error-count');
+  if(badge){ badge.style.display = _syncErrors.length ? 'inline-flex' : 'none'; }
+  if(count){ count.textContent = _syncErrors.length; }
+}
+
+function showSyncErrors(){
+  var list = document.getElementById('sync-error-list');
+  if(!_syncErrors.length){
+    list.innerHTML='<div style="text-align:center;padding:24px;color:var(--gray-soft)">✅ No sync errors!</div>';
+  } else {
+    list.innerHTML = _syncErrors.map(function(e){
+      return '<div style="border:1.5px solid #FADBD8;border-radius:10px;padding:12px;margin-bottom:8px;background:#FEF9F8">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center">'
+        +'<div style="font-weight:800;color:#C0392B;font-size:13px">⚠️ '+e.tab+'</div>'
+        +'<div style="font-size:10px;color:var(--gray-soft)">'+e.time+'</div></div>'
+        +'<div style="font-size:12px;margin:4px 0;color:#333">'+e.action+': '+e.detail+'</div>'
+        +(e.retries>0?'<div style="font-size:10px;color:var(--gray-soft)">Retried '+e.retries+' time(s)</div>':'')
+        +'<div style="display:flex;gap:6px;margin-top:8px">'
+        +'<button onclick="retrySyncError('+e.id+')" style="flex:1;padding:5px;border-radius:6px;border:none;background:#E74C3C;color:#fff;font-size:11px;font-weight:700;cursor:pointer">🔄 Retry</button>'
+        +'<button onclick="removeSyncError('+e.id+')" style="padding:5px 10px;border-radius:6px;border:none;background:var(--blue-pale);color:var(--blue-deep);font-size:11px;cursor:pointer">✕</button>'
+        +'</div></div>';
+    }).join('');
+  }
+  openModal('sync-errors-modal');
+}
+
+function removeSyncError(id){
+  _syncErrors = _syncErrors.filter(function(e){ return e.id!==id; });
+  _saveSyncErrors(); _updateSyncBadge(); showSyncErrors();
+}
+
+function clearSyncErrors(){
+  if(!confirm('Clear all '+_syncErrors.length+' sync errors? Data may be lost if not retried.')) return;
+  _syncErrors=[];
+  _saveSyncErrors(); _updateSyncBadge();
+  closeModal('sync-errors-modal');
+  showToast('Sync errors cleared.','success');
+}
+
+async function retrySyncError(id){
+  var err = _syncErrors.find(function(e){ return e.id===id; });
+  if(!err) return;
+  err.retries++;
+  var ok = false;
+  showToast('Retrying '+err.tab+'…','info');
+  try {
+    var res = await sheetsCall(err.action, err.data||{});
+    ok = res && (res.ok || res.items);
+  } catch(e){ ok=false; }
+  if(ok){
+    _syncErrors = _syncErrors.filter(function(e){ return e.id!==id; });
+    _saveSyncErrors(); _updateSyncBadge();
+    showToast('✅ '+err.tab+' synced successfully!','success');
+    showSyncErrors();
+  } else {
+    _saveSyncErrors();
+    showToast('❌ Still failing — check Google Sheets connection.','error');
+    showSyncErrors();
+  }
+}
+
+async function retryAllSyncErrors(){
+  if(!_syncErrors.length){ closeModal('sync-errors-modal'); return; }
+  showToast('Retrying '+_syncErrors.length+' error(s)…','info');
+  var succeeded=0, failed=0;
+  for(var i=_syncErrors.length-1;i>=0;i--){
+    var err = _syncErrors[i];
+    err.retries++;
+    try{
+      var res = await sheetsCall(err.action, err.data||{});
+      if(res && (res.ok || res.items)){
+        _syncErrors.splice(i,1); succeeded++;
+      } else { failed++; }
+    }catch(e){ failed++; }
+  }
+  _saveSyncErrors(); _updateSyncBadge();
+  if(succeeded) showToast('✅ '+succeeded+' item(s) synced!'+(failed?' '+failed+' still failing.':''),'success');
+  else showToast('❌ All retries failed — check connection.','error');
+  showSyncErrors();
+}
+
+// Initialize badge on load
+setTimeout(_updateSyncBadge, 500);
 /* ═══════════════════════════════════════════════════════════ */
 
 </script>
