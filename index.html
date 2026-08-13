@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+  <!-- Capacitor Native App -->
+  <script src="capacitor.js"></script>
   <link rel="manifest" href="manifest.json">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3460,24 +3462,15 @@ function printReceipt(){
   var hintLines = [];
 
   if(isIOS){
-    /* ── iOS: Check if Bluefy (Web Bluetooth enabled) ── */
-    if(hasBT || _isBluefy){
-      /* Running in Bluefy or BLE-capable browser — direct BLE printing works! */
-      html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBluetooth()">🖨️ Print Direct (Bluetooth)</button>';
-      html += '<button class="m-save" style="background:#555;font-size:14px" onclick="shareReceipt()">📤 Share Receipt</button>';
-      hintLines.push('✅ Direct Bluetooth printing enabled via Bluefy');
-      hintLines.push('Make sure Xprinter XP-58IID is paired in iPhone Settings → Bluetooth');
-    } else {
-      /* Safari — no Web Bluetooth. Show Bluefy option */
-      html += '<button class="m-save" style="background:#0B5ED7;font-size:15px;padding:14px" onclick="openBluefy()">🖨️ Print Direct via Bluefy</button>';
-      html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBrowser()">📄 Save as PDF / AirPrint</button>';
-      html += '<button class="m-save" style="background:#555;font-size:14px" onclick="shareReceipt()">📤 Share Receipt</button>';
-      hintLines.push('<strong style="color:#0B5ED7">🔵 Bluefy = Direct Bluetooth printing on iPhone (like GrabFood)</strong>');
-      hintLines.push('Step 1: Download <strong>Bluefy</strong> from App Store (free)');
-      hintLines.push('Step 2: Open your POS in Bluefy browser');
-      hintLines.push('Step 3: Tap Print → Bluetooth → connects direct to XP-58IID');
-      hintLines.push('<a href="https://apps.apple.com/app/bluefy-ble-web-browser/id1492822055" target="_blank" style="color:#0B5ED7;font-weight:800;font-size:13px">📲 Download Bluefy Free →</a>');
-    }
+    /* ── iOS (Safari): Print via Xprinter App — stay in Safari, no Bluefy needed ── */
+    html += '<button class="m-save" style="background:#1a1a1a;font-size:15px;padding:14px;letter-spacing:.3px" onclick="shareReceipt()">🖨️ Print via Xprinter App</button>';
+    html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBrowser()">📄 Save as PDF</button>';
+    hintLines.push('<b>One-time setup (do this once):</b>');
+    hintLines.push('1. Download <b>Xprinter</b> app from App Store (free)');
+    hintLines.push('2. Pair XP-58IID in iPhone <b>Settings → Bluetooth</b>');
+    hintLines.push('<b>Every time you print:</b>');
+    hintLines.push('Tap <b>Print via Xprinter App</b> → Share Sheet → tap <b>Xprinter</b> → done ✅');
+    hintLines.push('<span style="color:#27AE60;font-weight:700">✅ Stay in Safari — no other browser needed</span>');
   } else if(hasBT){
     /* ── Chrome/Edge: Full BLE + Browser + Share ── */
     html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBluetooth()">📶 Bluetooth Thermal Printer</button>';
@@ -3576,6 +3569,78 @@ async function printViaXprinterApp(){
   }
 }
 
+// ── Native BLE printing via @capacitor-community/bluetooth-le ───
+async function _nativeBLEPrint(){
+  var el = document.getElementById('bt-status-msg');
+  function status(msg, col){ if(el){ el.textContent=msg; if(col) el.style.color=col; } }
+  try{
+    var { BleClient } = window.CapacitorCommunity.BluetoothLe;
+    status('Initializing Bluetooth…');
+    await BleClient.initialize({ androidNeverForLocation: true });
+    status('Scanning for Xprinter…');
+    var device = await BleClient.requestDevice({
+      services: ['000018f0-0000-1000-8000-00805f9b34fb',
+                 '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+                 '0000ff00-0000-1000-8000-00805f9b34fb'],
+    });
+    if(!device){ status('No printer selected.','#E05050'); return; }
+    status('Connecting to '+device.name+'…');
+    await BleClient.connect(device.deviceId, function(){ status('Printer disconnected.','#E05050'); });
+    // Find write characteristic
+    var svcList = ['000018f0-0000-1000-8000-00805f9b34fb','49535343-fe7d-4ae5-8fa9-9fafd205e455','0000ff00-0000-1000-8000-00805f9b34fb'];
+    var chrList = ['00002af1-0000-1000-8000-00805f9b34fb','49535343-8841-43f4-a8d4-ecbe34729bb3','0000ff02-0000-1000-8000-00805f9b34fb'];
+    var svc=null, chr=null;
+    for(var i=0;i<svcList.length&&!svc;i++){
+      try{ var svcs=await BleClient.getServices(device.deviceId); svc=svcList[i]; chr=chrList[i]; }catch(e){}
+    }
+    if(!svc){ status('Printer write channel not found.','#E05050'); await BleClient.disconnect(device.deviceId); return; }
+    status('Printing receipt…');
+    // Build ESC/POS receipt
+    var ESC=27,GS=29,enc=new TextEncoder(),parts=[];
+    function p(a){parts=parts.concat(Array.from(a));}
+    function t(s){p(enc.encode(s+'\n'));}
+    var totals=getTotals();
+    p([ESC,0x40]); p([ESC,0x61,0x01]);
+    t('GREEK TO GO TAVERNA');
+    t('================================');
+    p([ESC,0x61,0x00]);
+    t('Order #'+String(orderCount).padStart(4,'0'));
+    t(new Date().toLocaleString('en-PH'));
+    var tn=document.getElementById('table-num'); if(tn&&tn.value) t('Table: '+tn.value);
+    var cn=document.getElementById('cust-name'); if(cn&&cn.value) t('Customer: '+cn.value);
+    var nn=document.getElementById('order-notes'); if(nn&&nn.value) t('Note: '+nn.value);
+    t('--------------------------------');
+    order.forEach(function(o){ t(o.name.padEnd(20).slice(0,20)+'x'+o.qty+' P'+parseFloat(o.price*o.qty).toFixed(2)); });
+    t('--------------------------------');
+    t('Subtotal:     P'+totals.sub.toFixed(2));
+    if(totals.da>0) t('Discount:    -P'+totals.da.toFixed(2));
+    p([ESC,0x45,1]); t('TOTAL:        P'+totals.tot.toFixed(2)); p([ESC,0x45,0]);
+    t('================================');
+    p([ESC,0x61,0x01]);
+    t('PAY VIA GCASH');
+    t('Scan QR code at counter');
+    t('');
+    t('Thank you! Come again!');
+    t(''); t(''); t('');
+    p([GS,0x56,0x41,0x03]); // cut
+    // Send in chunks
+    var CHUNK=100;
+    for(var j=0;j<parts.length;j+=CHUNK){
+      var chunk=new Uint8Array(parts.slice(j,j+CHUNK));
+      await BleClient.write(device.deviceId, svc, chr, new DataView(chunk.buffer));
+      await new Promise(function(r){setTimeout(r,30);});
+    }
+    await BleClient.disconnect(device.deviceId);
+    status('✅ Printed successfully!','#27AE60');
+    setTimeout(function(){ closeModal('bt-printer-modal'); },1500);
+  } catch(err){
+    if(err.message && err.message.includes('cancelled'))
+      status('Cancelled.','#888');
+    else
+      status('Error: '+(err.message||err.toString()),'#E05050');
+  }
+}
+
 async function shareReceipt(){
   closeModal('bt-printer-modal');
   var totals  = getTotals();
@@ -3625,6 +3690,11 @@ async function shareReceipt(){
 
 /* ── Bluetooth ESC/POS (Chrome/Edge only) ──────────────────── */
 async function printBluetooth(){
+  // ── Native Capacitor BLE (iOS + Android) ──────────────────
+  if(window.Capacitor && window.Capacitor.isNativePlatform()){
+    await _nativeBLEPrint(); return;
+  }
+  // ── Web Bluetooth fallback (Chrome/Edge) ──────────────────
   var el = document.getElementById('bt-status-msg');
   if(!_hasBluetooth()){
     if(el){ el.textContent='Bluetooth not supported in this browser. Use Chrome or Edge.'; el.style.color='#E05050'; }
