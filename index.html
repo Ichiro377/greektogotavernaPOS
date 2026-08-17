@@ -1157,7 +1157,7 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
         <th>Price</th>
         <th>Beg. Bal Stocks</th>
         <th>Ending Stocks</th>
-        <th>UOM</th>
+        <th>UNIT</th><th>UOM</th>
         <th>Supplier</th>
         <th>Actions</th>
       </tr></thead>
@@ -1280,20 +1280,24 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
   <div class="modal" style="max-width:520px;width:95vw">
     <h3 id="modal-title">➕ Add Inventory Item</h3>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="mf"><label>Item Code</label><input type="text" id="m-code" placeholder="e.g. GS-001"></div>
-      <div class="mf"><label>Category</label>
+      <div class="mf"><label>ITEM CODE</label><input type="text" id="m-code" placeholder="e.g. GS-001"></div>
+      <div class="mf"><label>CATEGORY</label>
         <input type="text" id="m-cat" list="cat-suggestions" placeholder="e.g. Mains, Drinks…" autocomplete="off">
         <datalist id="cat-suggestions">
-          <option>Mains</option><option>Appetizers</option><option>Soups &amp; Salads</option>
-          <option>Desserts</option><option>Drinks</option><option>Sides</option>
+          <option>Products From Greece</option><option>Dairy</option><option>Nuts</option>
+          <option>For Pies</option><option>Vegetables &amp; Herbs</option><option>Fruits</option>
+          <option>Meats</option><option>Sauces / Paste</option><option>Pita Bread</option>
+          <option>Other Seasoning</option><option>Support Beverages</option>
+          <option>Miscellaneous , Food Containers</option><option>Seasonal / By-Request</option>
         </datalist>
       </div>
-      <div class="mf" style="grid-column:1/-1"><label>Item Description</label><input type="text" id="m-name" placeholder="e.g. Chicken Souvlaki"></div>
-      <div class="mf"><label>Price (₱)</label><input type="number" id="m-price" placeholder="0.00" min="0" step="0.50"></div>
-      <div class="mf"><label>UOM</label><input type="text" id="m-uom" placeholder="e.g. pcs, kg, L"></div>
-      <div class="mf"><label>Beg. Bal. Stocks</label><input type="number" id="m-begbal" placeholder="0" min="0"></div>
-      <div class="mf"><label>Ending Stocks</label><input type="number" id="m-ending" placeholder="0" min="0"></div>
-      <div class="mf" style="grid-column:1/-1"><label>Supplier</label><input type="text" id="m-supplier" placeholder="e.g. ABC Trading"></div>
+      <div class="mf" style="grid-column:1/-1"><label>ITEM DESCRIPTION</label><input type="text" id="m-name" placeholder="e.g. Extra Virgin Olive Oil"></div>
+      <div class="mf"><label>PRICE (₱)</label><input type="number" id="m-price" placeholder="0.00" min="0" step="0.50"></div>
+      <div class="mf"><label>SUPPLIER</label><input type="text" id="m-supplier" placeholder="e.g. ABC Trading"></div>
+      <div class="mf"><label>UNIT</label><input type="text" id="m-unit" placeholder="e.g. 1 box, 500g, 1 bottle"></div>
+      <div class="mf"><label>UOM</label><input type="text" id="m-uom" placeholder="e.g. pcs, kg, L, btl"></div>
+      <div class="mf"><label>BEG. BAL. STOCKS</label><input type="number" id="m-begbal" placeholder="0" min="0"></div>
+      <div class="mf"><label>ENDING STOCKS</label><input type="number" id="m-ending" placeholder="0" min="0"></div>
     </div>
     <div class="modal-actions" style="margin-top:14px">
       <button class="m-cancel" onclick="closeModal('item-modal')">Cancel</button>
@@ -1491,7 +1495,8 @@ function _mapInvItem(raw, idx){
     price:       parseFloat(get('price','PRICE','Price')) || 0,
     begBal:      parseInt(get('begBal','BEG BAL STOCKS','BEG BAL','beg_bal','Beg Bal')) || 0,
     endingStock: parseInt(get('endingStock','ENDING STOCKS','ENDING','ending_stock','stock','STOCK')) || 0,
-    uom:         get('uom','UOM','Uom','unit','UNIT'),
+    unit:        get('unit','UNIT','Unit'),
+    uom:         get('uom','UOM','Uom'),
     supplier:    get('supplier','SUPPLIER','Supplier')
   };
 }
@@ -2593,6 +2598,7 @@ function renderInventory(){
     var iPrice = mapped.price  || 0;
     var iBeg   = mapped.begBal || 0;
     var iEnd   = mapped.endingStock || 0;
+    var iUnit  = mapped.unit     || '—';
     var iUom   = mapped.uom      || '—';
     var iSupp  = mapped.supplier || '—';
     const cls  = iEnd===0?'oos-cell':iEnd<=5?'low-cell':'';
@@ -2603,6 +2609,7 @@ function renderInventory(){
       <td>₱${iPrice.toFixed(2)}</td>
       <td>${iBeg}</td>
       <td class="${cls}">${iEnd}</td>
+      <td>${iUnit||'—'}</td>
       <td>${iUom||'—'}</td>
       <td>${iSupp||'—'}</td>
       <td class="ia-cell">
@@ -2616,7 +2623,7 @@ function renderInventory(){
 function openAddModal(){
   editingId=null;
   document.getElementById('modal-title').textContent='➕ Add Inventory Item';
-  ['m-code','m-name','m-cat','m-price','m-uom','m-begbal','m-ending','m-supplier']
+  ['m-code','m-name','m-cat','m-price','m-unit','m-uom','m-begbal','m-ending','m-supplier']
     .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   _refreshCatSuggestions();
   openModal('item-modal');
@@ -2631,6 +2638,7 @@ function openEditModal(id){
   document.getElementById('m-name').value    = _v(it.description,it['ITEM DESCRIPTION'],it.name||'');
   document.getElementById('m-cat').value     = _v(it.category,   it['CATEGORY'],    it.cat||'');
   document.getElementById('m-price').value   = it.price||it['PRICE']||'';
+  document.getElementById('m-unit').value    = _v(it.unit,       it['UNIT'],        '');
   document.getElementById('m-uom').value     = _v(it.uom,        it['UOM'],         '');
   document.getElementById('m-begbal').value  = it.begBal||it['BEG BAL STOCKS']||it['BEG BAL']||0;
   document.getElementById('m-ending').value  = it.endingStock||it['ENDING STOCKS']||it.stock||0;
@@ -2652,12 +2660,13 @@ async function saveItem(){
   const description = document.getElementById('m-name').value.trim();
   const category    = document.getElementById('m-cat').value.trim();
   const price       = parseFloat(document.getElementById('m-price').value)||0;
+  const unit        = document.getElementById('m-unit').value.trim();
   const uom         = document.getElementById('m-uom').value.trim();
   const begBal      = parseInt(document.getElementById('m-begbal').value)||0;
   const endingStock = parseInt(document.getElementById('m-ending').value)||0;
   const supplier    = document.getElementById('m-supplier').value.trim();
   if(!description){showToast('Enter item description.','error');return;}
-  const record = {itemCode,description,category,price,uom,begBal,endingStock,supplier};
+  const record = {itemCode,description,category,price,unit,uom,begBal,endingStock,supplier};
   if(editingId){
     const idx = stockInventory.findIndex(i=>i.id===editingId);
     if(idx>-1) stockInventory[idx] = {...stockInventory[idx], ...record};
@@ -3460,24 +3469,15 @@ function printReceipt(){
   var hintLines = [];
 
   if(isIOS){
-    /* ── iOS: Check if Bluefy (Web Bluetooth enabled) ── */
-    if(hasBT || _isBluefy){
-      /* Running in Bluefy or BLE-capable browser — direct BLE printing works! */
-      html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBluetooth()">🖨️ Print Direct (Bluetooth)</button>';
-      html += '<button class="m-save" style="background:#555;font-size:14px" onclick="shareReceipt()">📤 Share Receipt</button>';
-      hintLines.push('✅ Direct Bluetooth printing enabled via Bluefy');
-      hintLines.push('Make sure Xprinter XP-58IID is paired in iPhone Settings → Bluetooth');
-    } else {
-      /* Safari — no Web Bluetooth. Show Bluefy option */
-      html += '<button class="m-save" style="background:#0B5ED7;font-size:15px;padding:14px" onclick="openBluefy()">🖨️ Print Direct via Bluefy</button>';
-      html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBrowser()">📄 Save as PDF / AirPrint</button>';
-      html += '<button class="m-save" style="background:#555;font-size:14px" onclick="shareReceipt()">📤 Share Receipt</button>';
-      hintLines.push('<strong style="color:#0B5ED7">🔵 Bluefy = Direct Bluetooth printing on iPhone (like GrabFood)</strong>');
-      hintLines.push('Step 1: Download <strong>Bluefy</strong> from App Store (free)');
-      hintLines.push('Step 2: Open your POS in Bluefy browser');
-      hintLines.push('Step 3: Tap Print → Bluetooth → connects direct to XP-58IID');
-      hintLines.push('<a href="https://apps.apple.com/app/bluefy-ble-web-browser/id1492822055" target="_blank" style="color:#0B5ED7;font-weight:800;font-size:13px">📲 Download Bluefy Free →</a>');
-    }
+    /* ── iOS (Safari): Print via Xprinter App — stay in Safari, no Bluefy needed ── */
+    html += '<button class="m-save" style="background:#1a1a1a;font-size:15px;padding:14px;letter-spacing:.3px" onclick="shareReceipt()">🖨️ Print via Xprinter App</button>';
+    html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBrowser()">📄 Save as PDF</button>';
+    hintLines.push('<b>One-time setup (do this once):</b>');
+    hintLines.push('1. Download <b>Xprinter</b> app from App Store (free)');
+    hintLines.push('2. Pair XP-58IID in iPhone <b>Settings → Bluetooth</b>');
+    hintLines.push('<b>Every time you print:</b>');
+    hintLines.push('Tap <b>Print via Xprinter App</b> → Share Sheet → tap <b>Xprinter</b> → done ✅');
+    hintLines.push('<span style="color:#27AE60;font-weight:700">✅ Stay in Safari — no other browser needed</span>');
   } else if(hasBT){
     /* ── Chrome/Edge: Full BLE + Browser + Share ── */
     html += '<button class="m-save" style="background:#27AE60;font-size:14px" onclick="printBluetooth()">📶 Bluetooth Thermal Printer</button>';
