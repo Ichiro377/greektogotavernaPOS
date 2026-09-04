@@ -2729,43 +2729,46 @@ function deleteItem(id){
 const C_COLORS=['av-b','av-t','av-a','av-p','av-r'];
 function cInitials(n){return n.split(' ').map(w=>w[0]).join("").slice(0,2).toUpperCase();}
 
-let cashiers=JSON.parse(localStorage.getItem('gtg_cashiers')||'[]');
+let cashiers=[]; // Credentials/roster are loaded from Google Sheets only.
 let selectedCashierId=null;
 let cPinEntry='';
 let mPinEntry='';
 let editingCashierId=null;
 
 function saveCashiers(){
-  localStorage.setItem('gtg_cashiers',JSON.stringify(cashiers));
-  // Auto-sync to Google Sheets Cashiers tab
+  // Google Sheets ONLY — cashier credentials are never stored in localStorage.
   if(typeof SHEETS_URL!=='undefined' && SHEETS_URL){
-    sheetsCall('saveCashiers',{items:cashiers.map(function(c){
-      return {id:c.id,name:c.name,role:c.role,pin:c.pin,color:c.color||'av-t',active:c.active||false};
+    return sheetsCall('saveCashiers',{items:cashiers.map(function(c){
+      return {id:c.id,name:c.name,role:c.role,pin:c.pin,color:c.color||'av-t',active:c.active!==false};
     })});
   }
+  showToast('❌ Google Sheets is not connected. Cashier changes were not saved.','error');
+  return Promise.resolve(null);
 }
 
 async function loadCashiersFromSheets(){
-  if(!SHEETS_URL) return;
-  var res = await sheetsCall('getCashiers');
-  if(res && res.items && res.items.length){
-    cashiers = res.items.map(function(it){
-      return {
-        id:     parseInt(it.id)||1,
-        name:   it.name||'',
-        role:   it.role||'Cashier',
-        pin:    String(it.pin||'0000'),
-        color:  it.color||'av-t',
-        active: it.active==='true'||it.active===true||false
-      };
-    });
-    localStorage.setItem('gtg_cashiers',JSON.stringify(cashiers));
-    if(typeof renderCashierRoster==='function') renderCashierRoster();
-    showToast('✅ Cashier roster synced from Sheet!','success');
-  } else if(cashiers.length){
-    // Sheet empty — push local up as first backup
-    saveCashiers();
-  }
+  if(!SHEETS_URL) return false;
+  try{
+    var res = await sheetsCall('getCashiers',{});
+    if(res && Array.isArray(res.items)){
+      cashiers = res.items.map(function(it){
+        return {
+          id: parseInt(it.id)||1,
+          name: String(it.name||'').trim(),
+          role: String(it.role||'Cashier').trim(),
+          pin: String(it.pin==null?'':it.pin).trim(),
+          color: it.color||'av-t',
+          active: it.active===true || String(it.active).toLowerCase()==='true'
+        };
+      }).filter(function(c){ return c.name && c.pin && c.active !== false; });
+      if(typeof renderCashierRoster==='function') renderCashierRoster();
+      if(typeof renderLoginStaffGrid==='function') renderLoginStaffGrid();
+      return true;
+    }
+  }catch(e){ console.warn('Google Sheets cashier load failed:',e); }
+  cashiers=[];
+  if(typeof renderLoginStaffGrid==='function') renderLoginStaffGrid();
+  return false;
 }
 
 function exportCashiers(){
@@ -2988,7 +2991,6 @@ function showSheetsSetupOnLogin() {
 
 function onSignedIn() {
   document.getElementById('login-screen').style.display = 'none';
-  localStorage.setItem('gtg_auto_login', '1'); // remember — skip login next time
   var chip = document.getElementById('g-user-chip');
   chip.style.display = 'flex';
   var initials = googleUser.name.split(' ').map(function(w){return w[0];}).join("").slice(0,2).toUpperCase();
@@ -3058,12 +3060,17 @@ async function _initialSync(){
 
   // Step 4: Cashiers
   var cashRes = await _call(SHEETS_URL,'getCashiers',{});
-  if(cashRes && cashRes.items && cashRes.items.length){
+  if(cashRes && Array.isArray(cashRes.items)){
     cashiers = cashRes.items.map(function(it){
-      return { id:parseInt(it.id)||1, name:it.name||'', role:it.role||'Cashier',
-        pin:String(it.pin||'0000'), color:it.color||'av-t', active:it.active===true||it.active==='true' };
-    });
-    localStorage.setItem('gtg_cashiers',JSON.stringify(cashiers));
+      var rawPin = it.pin==null ? '' : String(it.pin).trim();
+      // Google Sheets may return a numeric PIN without leading zeroes.
+      var pin = rawPin && /^\d+$/.test(rawPin) ? rawPin.padStart(4,'0') : rawPin;
+      var activeVal = it.active;
+      var active = !(activeVal===false || String(activeVal).trim().toLowerCase()==='false' || String(activeVal).trim()==='0');
+      return { id:parseInt(it.id)||1, name:String(it.name||'').trim(), role:String(it.role||'Cashier').trim(),
+        pin:pin, color:it.color||'av-t', active:active };
+    }).filter(function(c){ return c.name && c.pin; });
+    // NEVER persist cashier credentials locally.
     renderCashierRoster();
   }
 
@@ -3073,12 +3080,9 @@ async function _initialSync(){
 }
 
 function continueOffline() {
-  googleUser = { name: 'Guest', email: '', sub: 'guest' };
-  document.getElementById('login-screen').style.display = 'none';
-  // menuItems and stockInventory already loaded from localStorage at page init — never reset here.
-  setDBStatus('disconnected','Offline mode');
-  renderCatTabs(); renderMenu(); renderInventory();
-  renderCashierRoster();
+  var err=document.getElementById('login-err');
+  if(err) err.textContent='Google Sheets is required. Offline login is disabled.';
+  return false;
 }
 
 function doLogout() {
@@ -3182,7 +3186,7 @@ function setLoginMode(mode) {
   document.getElementById('lmode-owner').style.display  = mode==='owner' ? '' : 'none';
   document.getElementById('ltab-staff').classList.toggle('ltab-active', mode==='staff');
   document.getElementById('ltab-owner').classList.toggle('ltab-active', mode==='owner');
-  if (mode==='staff') renderLoginStaffGrid();
+  if (mode==='staff') { renderLoginStaffGrid(); loadCashiersFromSheets().then(function(){ renderLoginStaffGrid(); }); }
   else {
     setTimeout(()=>{ var el=document.getElementById('login-name'); if(el) el.focus(); },100);
   }
@@ -3288,7 +3292,6 @@ function loginPinSubmit() {
   setTimeout(()=>{
     // Hide login screen
     document.getElementById('login-screen').style.display = 'none';
-    localStorage.setItem('gtg_auto_login','1');
     // Set active cashier badge
     const active = document.getElementById('active-cashier');
     if (active) active.innerHTML = '👤 ' + c.name;
@@ -3296,7 +3299,6 @@ function loginPinSubmit() {
     if (_lb) _lb.style.display = 'inline-flex';
     // Set googleUser so app knows who is logged in
     googleUser = { name: c.name, email:'', sub: c.name.toLowerCase().replace(/\s+/g,'_') };
-    localStorage.setItem('gtg_google_user', JSON.stringify(googleUser));
     // Update user chip
     var chip = document.getElementById('g-user-chip');
     if (chip) chip.style.display = 'flex';
@@ -3328,27 +3330,16 @@ function loginPinBack() {
 
 /* ═══════════════════ AUTO-RESTORE SESSION ═══════════════════ */
 (function restoreSession() {
-  var saved = localStorage.getItem('gtg_google_user');
-  var autoLogin = localStorage.getItem('gtg_auto_login');
-  if (saved && autoLogin) {
-    try {
-      googleUser = JSON.parse(saved);
-      var savedUrl = localStorage.getItem('gtg_sheets_url_' + googleUser.sub) || localStorage.getItem('greektogo_sheets_url') || '';
-      if (savedUrl) { SHEETS_URL = savedUrl; }
-      onSignedIn();
-      return;
-    } catch(e) {}
-  }
-  // Show staff grid on login screen
-  setTimeout(function(){ if(typeof renderLoginStaffGrid==='function') renderLoginStaffGrid(); }, 50);
-  // Pre-fill name if previously used
-  if (saved) {
-    try {
-      var u = JSON.parse(saved);
-      var el = document.getElementById('login-name');
-      if (el) el.value = u.name;
-    } catch(e) {}
-  }
+  // Security: never auto-login from localStorage. Every session must authenticate against Google Sheets.
+  try{
+    localStorage.removeItem('gtg_auto_login');
+    localStorage.removeItem('gtg_google_user');
+    localStorage.removeItem('gtg_user');
+  }catch(e){}
+  setTimeout(function(){
+    if(typeof loadCashiersFromSheets==='function') loadCashiersFromSheets().then(function(){ renderLoginStaffGrid(); });
+    else if(typeof renderLoginStaffGrid==='function') renderLoginStaffGrid();
+  },100);
 })();
 
 /* ═══════════════════ INIT ═══════════════════ */
@@ -3370,126 +3361,78 @@ document.getElementById('order-num').textContent=`Order #${String(orderCount).pa
 <script>
 /* ══ LOGIN — completely self-contained, no dependencies on other scripts ══ */
 async function doLogin(){
-  /* Credentials — hardcoded fallback plus cashier accounts from Google Sheets */
-  var ACCOUNTS = [
-    { username:'owner',    password:'1234', role:'Owner',   badge:'&#128081; Owner Logged In', color:'av-b' },
-    { username:'Wahlene',  password:'1234', role:'Staff',   badge:'&#128100; Wahlene',         color:'av-t' },
-    { username:'Beth',     password:'5678', role:'Staff',   badge:'&#128100; Beth',             color:'av-o' },
-    { username:'Zap',      password:'9999', role:'Staff',   badge:'&#128100; Zap',              color:'av-p' },
-    { username:'cashier1', password:'1111', role:'Cashier', badge:'&#128100; Cashier 1',        color:'av-t' },
-    { username:'cashier2', password:'2222', role:'Cashier', badge:'&#128100; Cashier 2',        color:'av-t' }
-  ];
-
-  var userEl = document.getElementById('login-name');
-  var passEl = document.getElementById('login-pass');
-  var errEl  = document.getElementById('login-err');
-  var username = (userEl ? userEl.value : '').trim();
-  var password = (passEl ? passEl.value : '').trim();
-  if(errEl) errEl.textContent = '';
-
-  if(!username || !password){
-    if(errEl) errEl.textContent = 'Please enter username and password.';
+  // GOOGLE SHEETS ONLY. Credentials are fetched fresh on every login.
+  var userEl=document.getElementById('login-name');
+  var passEl=document.getElementById('login-pass');
+  var errEl=document.getElementById('login-err');
+  var username=(userEl?userEl.value:'').trim();
+  var password=(passEl?passEl.value:'').trim();
+  if(errEl) errEl.textContent='';
+  if(!username || !password){ if(errEl) errEl.textContent='Please enter username and PIN.'; return; }
+  if(typeof SHEETS_URL==='undefined' || !SHEETS_URL){
+    if(errEl) errEl.textContent='Google Sheets is not connected. Login is unavailable.';
     return;
   }
-
-  var match = null;
-  var normalizedUser = username.toLowerCase();
-
-  /* 1) Check permanent local fallback accounts first */
-  for(var i=0;i<ACCOUNTS.length;i++){
-    if(String(ACCOUNTS[i].username).toLowerCase()===normalizedUser &&
-       String(ACCOUNTS[i].password)===String(password)){
-      match=ACCOUNTS[i];
-      break;
-    }
-  }
-
-  /* 2) Check locally cached cashier accounts */
-  if(!match){
-    var stored=[];
-    try{ stored=JSON.parse(localStorage.getItem('gtg_cashiers')||'[]'); }catch(e){}
-    for(var j=0;j<stored.length;j++){
-      var sc=stored[j];
-      if(sc.name && String(sc.name).trim().toLowerCase()===normalizedUser &&
-         String(sc.pin).trim()===String(password)){
-        match={username:sc.name,password:password,role:sc.role||'Staff',
-               badge:'&#128100; '+sc.name.split(' ')[0],color:sc.color||'av-t'};
-        break;
-      }
-    }
-  }
-
-  /* 3) IMPORTANT: on a new tablet, localStorage is empty.
-        Fetch the cashier roster directly from Google Sheets before rejecting login. */
-  if(!match && typeof SHEETS_URL!=='undefined' && SHEETS_URL){
-    if(errEl) errEl.textContent='Checking staff credentials…';
-    try{
-      var remote=await _call(SHEETS_URL,'getCashiers',{});
-      if(remote && Array.isArray(remote.items)){
-        var remoteCashiers=remote.items.map(function(it){
-          return {
-            id:parseInt(it.id)||1,
-            name:it.name||'',
-            role:it.role||'Cashier',
-            pin:String(it.pin==null?'':it.pin).trim(),
-            color:it.color||'av-t',
-            active:it.active===true||it.active==='true'
-          };
-        }).filter(function(c){ return c.name; });
-
-        if(remoteCashiers.length){
-          cashiers=remoteCashiers;
-          try{ localStorage.setItem('gtg_cashiers',JSON.stringify(cashiers)); }catch(e){}
-          if(typeof renderCashierRoster==='function') renderCashierRoster();
-
-          for(var k=0;k<remoteCashiers.length;k++){
-            var rc=remoteCashiers[k];
-            if(String(rc.name).trim().toLowerCase()===normalizedUser &&
-               String(rc.pin).trim()===String(password)){
-              match={username:rc.name,password:password,role:rc.role||'Staff',
-                     badge:'&#128100; '+rc.name.split(' ')[0],color:rc.color||'av-t'};
-              break;
-            }
-          }
-        }
-      }
-    }catch(e){
-      console.warn('Remote credential check failed:',e);
-    }
-  }
-
-  if(!match){
-    if(errEl) errEl.textContent = 'Invalid username or password.';
-    var box=document.querySelector('.login-box');
-    if(box){ box.style.animation='none'; void box.offsetWidth; box.style.animation='loginShake .35s ease'; }
-    return;
-  }
-
-  try{ localStorage.setItem('gtg_user',JSON.stringify(match)); }catch(e){}
-  if(typeof googleUser!=='undefined'){
-    googleUser={name:match.username,email:match.role,
-                sub:match.username.toLowerCase().replace(/\s+/g,'_')};
-    try{ localStorage.setItem('gtg_google_user',JSON.stringify(googleUser)); }catch(e){}
-  }
-
-  var active=document.getElementById('active-cashier');
-  if(active) active.innerHTML=match.badge;
-  var lb=document.getElementById('logout-btn');
-  if(lb) lb.style.display='inline-flex';
-
+  var btn=document.querySelector('.login-btn');
+  if(btn){btn.disabled=true;btn.dataset.oldText=btn.innerHTML;btn.innerHTML='⏳ Checking Google Sheets…';}
+  if(errEl) errEl.textContent='Checking Google Sheets…';
   try{
-    if(typeof shiftLog!=='undefined'){
-      var entry={name:match.username,type:'IN',
-        shift:(document.getElementById('c-shift-sel')||{value:''}).value||'Shift',
-        color:match.color,time:new Date().toLocaleString('en-PH')};
-      shiftLog.unshift(entry);
-      if(shiftLog.length>30) shiftLog.length=30;
-      if(typeof renderShiftLog==='function') renderShiftLog();
-      if(typeof pushShiftToSheets==='function') pushShiftToSheets(entry);
-    }
-  }catch(e){}
+    // Ping first so a broken/dead deployment never falls through to local data.
+    var ping=await _call(SHEETS_URL,'ping',{});
+    if(!ping) throw new Error('Google Sheets cannot be reached. Check the Apps Script Web App deployment.');
 
-  if(typeof onSignedIn==='function') onSignedIn();
+    var remote=await _call(SHEETS_URL,'getCashiers',{});
+    if(!remote || !Array.isArray(remote.items)){
+      throw new Error('Google Sheets did not return the Cashiers list. Make sure the Apps Script supports getCashiers.');
+    }
+
+    var list=remote.items.map(function(it){
+      var rawPin=it.pin==null?'':String(it.pin).trim();
+      var pin=(rawPin && /^\d+$/.test(rawPin)) ? rawPin.padStart(4,'0') : rawPin;
+      var activeVal=it.active;
+      var active=!(activeVal===false || String(activeVal).trim().toLowerCase()==='false' || String(activeVal).trim()==='0');
+      return {
+        id:parseInt(it.id)||1,
+        name:String(it.name||'').trim(),
+        role:String(it.role||'Cashier').trim(),
+        pin:pin,
+        color:it.color||'av-t',
+        active:active
+      };
+    }).filter(function(c){return c.name && c.pin && c.active;});
+
+    // Memory only. Never write credentials to localStorage.
+    cashiers=list;
+    var match=list.find(function(c){
+      return c.name.toLowerCase()===username.toLowerCase() && c.pin===password;
+    });
+    if(!match){
+      if(errEl) errEl.textContent='Invalid username or PIN.';
+      return;
+    }
+
+    googleUser={name:match.name,email:'',sub:match.name.toLowerCase().replace(/\s+/g,'_')};
+    var active=document.getElementById('active-cashier'); if(active) active.innerHTML='👤 '+match.name;
+    var lb=document.getElementById('logout-btn'); if(lb) lb.style.display='inline-flex';
+    var chip=document.getElementById('g-user-chip'); if(chip) chip.style.display='flex';
+    var initials=match.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+    var gd=document.getElementById('g-user-display'); if(gd) gd.textContent=match.name.split(' ')[0];
+    var gi=document.getElementById('g-user-initials'); if(gi) gi.textContent=initials;
+    var gm=document.getElementById('g-menu-name'); if(gm) gm.textContent=match.name;
+    var ge=document.getElementById('g-menu-email'); if(ge) ge.textContent=match.role||'Cashier';
+    document.getElementById('login-screen').style.display='none';
+    setDBStatus('connected','Google Sheets ✓');
+    if(errEl) errEl.textContent='';
+    renderCatTabs(); renderMenu(); renderInventory(); renderCashierRoster();
+    // Load the rest of the POS data only after the Sheet-authenticated login succeeds.
+    _syncDone=false;
+    _initialSync();
+  }catch(e){
+    console.error('Google Sheets login failed:',e);
+    if(errEl) errEl.textContent='❌ '+(e.message||'Google Sheets login failed.');
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.oldText||'Enter POS';}
+  }
 }
 /* ═══════════════════ BLUETOOTH PRINTER ═══════════════════ */
 var _btDevice = null;
