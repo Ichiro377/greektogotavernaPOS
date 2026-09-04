@@ -3585,52 +3585,87 @@ function printViaRawBT(){
   var custVal = (document.getElementById('cust-name')||{}).value||'';
   var notesVal= (document.getElementById('order-notes')||{}).value||'';
   var cashier = typeof activeCashier!=='undefined' ? activeCashier : '';
-  var lines   = [];
-  lines.push('================================');
-  lines.push('    GREEK TO GO TAVERNA');
-  lines.push('================================');
-  lines.push('Order #: ' + orderNum);
+
+  // ── Strip non-ASCII (XP-58IID only supports ASCII/CP437) ──────────────────
+  function ascii(str){
+    return String(str||'')
+      .replace(/₱/g,'P')   // PHP Peso sign -> P
+      .replace(/[‘’]/g,"'")
+      .replace(/[“”]/g,'"')
+      .replace(/[^ -~]/g,'');  // drop all remaining non-ASCII
+  }
+
+  // ── Build receipt lines (ASCII only) ─────────────────────────────────────
+  var lines = [];
+  var DIV   = '--------------------------------';
+  var HDR   = '================================';
+
+  lines.push(HDR);
+  lines.push('  GREEK TO GO TAVERNA');
+  lines.push(HDR);
+  lines.push('Order #: '  + orderNum);
   lines.push(new Date().toLocaleString('en-PH'));
-  if(tableVal)  lines.push('Table:    ' + tableVal);
-  if(custVal)   lines.push('Customer: ' + custVal);
-  if(cashier)   lines.push('Cashier:  ' + cashier);
-  lines.push('--------------------------------');
-  lines.push('Item                  Qty   Amt');
-  lines.push('--------------------------------');
+  if(tableVal)  lines.push('Table:    ' + ascii(tableVal));
+  if(custVal)   lines.push('Customer: ' + ascii(custVal));
+  if(cashier)   lines.push('Cashier:  ' + ascii(cashier));
+  lines.push(DIV);
+  lines.push(('Item').padEnd(22) + 'Qty'.padStart(4) + 'Amount'.padStart(8));
+  lines.push(DIV);
+
   order.forEach(function(o){
-    var nm = (o.name||'').slice(0,20).padEnd(20);
-    var qty= ('x'+o.qty).padStart(4);
-    var amt= ('P'+parseFloat(o.price*o.qty).toFixed(2)).padStart(9);
-    lines.push(nm+qty+amt);
+    var nm  = ascii(o.name||'').slice(0,21);
+    var qty = ('x'+o.qty).padStart(4);
+    var amt = ('P'+parseFloat(o.price*o.qty).toFixed(2)).padStart(8);
+    // Wrap long names
+    if(nm.length > 18){
+      lines.push(nm);
+      lines.push(''.padEnd(22) + qty + amt);
+    } else {
+      lines.push(nm.padEnd(22) + qty + amt);
+    }
   });
-  lines.push('--------------------------------');
-  lines.push(('Subtotal:').padEnd(22) + ('P'+totals.sub.toFixed(2)).padStart(10));
-  if(totals.da>0) lines.push(('Discount:').padEnd(22) + ('-P'+totals.da.toFixed(2)).padStart(10));
-  lines.push(('TOTAL:').padEnd(22) + ('P'+totals.tot.toFixed(2)).padStart(10));
-  if(notesVal){ lines.push('--------------------------------'); lines.push('Note: '+notesVal); }
-  lines.push('================================');
-  lines.push('  Join our Loyalty Club!');
-  lines.push('  Scan QR on your receipt');
-  lines.push('================================');
+
+  lines.push(DIV);
+  lines.push('Subtotal:'.padEnd(22) + ('P'+totals.sub.toFixed(2)).padStart(12));
+  if(totals.da > 0){
+    lines.push('Discount:'.padEnd(22) + ('-P'+totals.da.toFixed(2)).padStart(12));
+  }
+  lines.push('');
+  lines.push('TOTAL:'.padEnd(22) + ('P'+totals.tot.toFixed(2)).padStart(12));
+  lines.push(HDR);
+
+  if(notesVal){
+    lines.push('NOTE: ' + ascii(notesVal));
+    lines.push(DIV);
+  }
+
+  lines.push('  JOIN OUR LOYALTY CLUB!');
+  lines.push('  Scan QR on your receipt card');
+  lines.push(HDR);
   lines.push('  Thank you! Come again!');
-  lines.push(''); lines.push(''); lines.push('');
+  lines.push('');
+  lines.push('');
+  lines.push('');
+
+  // ── Send to RawBT via URL scheme ──────────────────────────────────────────
+  // Use rawbt: URI — plain ASCII text, no Unicode
   var text = lines.join("\n");
 
 
-  // Send to RawBT via URL scheme
-  try{
-    var a = document.createElement('a');
-    a.href = 'rawbt:' + encodeURIComponent(text);
+  try {
+    // RawBT intent URI — most reliable method
+    var uri = 'rawbt:' + encodeURIComponent(text);
+    var a   = document.createElement('a');
+    a.href  = uri;
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
-    setTimeout(function(){ try{document.body.removeChild(a);}catch(e){} }, 1000);
-    showToast('🖨️ Sending to XP-58IID via RawBT…','success');
+    setTimeout(function(){ try{document.body.removeChild(a);}catch(e){} }, 1500);
+    showToast('Sending to XP-58IID via RawBT...','info');
   } catch(e){
-    showToast('❌ RawBT not installed. Download from Play Store.','error');
+    showToast('RawBT error: ' + (e.message||e), 'error');
   }
 }
-
 async function shareReceipt(){
   closeModal('bt-printer-modal');
   var totals  = getTotals();
@@ -4476,12 +4511,13 @@ function printKitchenTicket(ko){
 
 
   if(KITCHEN_PRINTER_TYPE==='rawbt'){
-    // RawBT Android app — sends to XP-58IID via Bluetooth
+    // RawBT — strip all non-ASCII before sending
+    var asciiText = text.replace(/₱/g,'P').replace(/[^ -~]/g,'');
     var a = document.createElement('a');
-    a.href = 'rawbt:' + encodeURIComponent(text);
+    a.href = 'rawbt:' + encodeURIComponent(asciiText);
     a.style.display='none'; document.body.appendChild(a); a.click();
-    setTimeout(function(){ try{document.body.removeChild(a);}catch(e){} }, 1000);
-    showToast('🖨️ Sending to kitchen printer (RawBT)…','info');
+    setTimeout(function(){ try{document.body.removeChild(a);}catch(e){} }, 1500);
+    showToast('Sending to kitchen printer (RawBT)...','info');
   } else {
     // WiFi printer — browser print dialog
     var css = '@page{margin:0;size:80mm auto}body{font-family:"Courier New",monospace;font-size:13px;width:72mm;margin:0 auto;padding:4mm;white-space:pre-wrap}';
