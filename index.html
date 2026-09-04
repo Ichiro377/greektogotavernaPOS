@@ -3521,6 +3521,7 @@ function printReceipt(){
   }
 
   if(container) container.innerHTML = html;
+  hintLines.push('<div style="margin-top:10px;opacity:.55;font-size:10px">Print engine build: RAWBT-FIX-3 (raw ESC/POS bytes)</div>');
   if(hint) hint.innerHTML = hintLines.join('<br>');
   openModal('bt-printer-modal');
 }
@@ -3619,7 +3620,16 @@ function _sendToRawBT(bytes, busyMsg){
   setTimeout(function(){ _rawbtBusy = false; }, 1500);
   try{
     var b64 = _bytesToBase64(bytes);
-    window.location.href = 'intent:base64,'+b64+'#Intent;scheme=rawbt;package='+RAWBT_PACKAGE+';end;';
+    // Plain "rawbt:" link — this is the mechanism that was already reaching
+    // the RawBT app (it's what produced the original "Sent: 519" log), so we
+    // keep it as-is and only change WHAT it sends: real ESC/POS bytes with an
+    // explicit init+cut, instead of plain text RawBT had to reformat itself.
+    var a = document.createElement('a');
+    a.href = 'rawbt:base64,' + b64;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ try{ document.body.removeChild(a); }catch(e){} }, 1000);
     showToast(busyMsg || '🖨️ Sending to printer…','info');
   } catch(e){
     showToast('❌ Could not reach RawBT. Is it installed?','error');
