@@ -989,10 +989,11 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
     <div>
       <h2 style="font-family:'Cinzel',serif;font-size:22px;color:#fff;margin:0">🍳 Kitchen Display</h2>
-      <div id="kitchen-last-refresh" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px;">Auto-refreshes every 30s</div>
+      <div id="kitchen-last-refresh" style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px;">Auto-refreshes every 5s • alerts new orders</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <div id="kitchen-pending-badge" style="background:#E65100;color:#fff;border-radius:20px;padding:4px 14px;font-weight:800;font-size:14px;display:none;"></div>
+      <button onclick="enableKitchenNotifications()" id="kitchen-notify-btn" style="padding:8px 14px;border-radius:10px;border:none;background:rgba(255,255,255,.1);color:#fff;font-family:Nunito,sans-serif;font-weight:700;font-size:12px;cursor:pointer;">🔔 Enable Alerts</button>
       <button onclick="refreshKitchen()" style="padding:8px 14px;border-radius:10px;border:none;background:rgba(255,255,255,.1);color:#fff;font-family:Nunito,sans-serif;font-weight:700;font-size:12px;cursor:pointer;">🔄 Refresh</button>
       <button onclick="toggleKitchenDone()" id="kitchen-show-done-btn" style="padding:8px 14px;border-radius:10px;border:none;background:rgba(255,255,255,.1);color:#fff;font-family:Nunito,sans-serif;font-weight:700;font-size:12px;cursor:pointer;">Show Done</button>
     </div>
@@ -1427,6 +1428,17 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
   </div>
 </div>
 
+<div id="kitchen-alert-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:5000;align-items:center;justify-content:center;padding:20px;" onclick="dismissKitchenAlert()">
+  <div style="width:min(560px,94vw);background:#fff;border-radius:22px;padding:28px;text-align:center;box-shadow:0 20px 70px rgba(0,0,0,.45);" onclick="event.stopPropagation()">
+    <div style="font-size:54px;margin-bottom:6px;">🍳</div>
+    <div style="font-family:Cinzel,serif;font-size:25px;font-weight:900;color:#0B2545;">NEW KITCHEN ORDER</div>
+    <div id="kitchen-alert-order" style="font-size:16px;font-weight:900;color:#2E7DD1;margin-top:8px;"></div>
+    <div id="kitchen-alert-table" style="font-size:28px;font-weight:900;color:#0B2545;margin-top:4px;"></div>
+    <div id="kitchen-alert-items" style="font-size:15px;color:#555;line-height:1.6;margin:14px 0 20px;"></div>
+    <button onclick="dismissKitchenAlert()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#0B2545;color:#fff;font-family:Nunito,sans-serif;font-size:15px;font-weight:900;cursor:pointer;">✅ ACKNOWLEDGE ORDER</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1588,7 +1600,7 @@ function showTab(tab, btn) {
   if(tab==='grab')      { renderDeliveryStats('grab'); renderDeliveryTable('grab'); setNow('grab-dt'); }
   if(tab==='cashier')   { renderCashierRoster(); renderShiftLog(); }
   if(tab==='reports')     renderReports();
-  if(tab==='kitchen')   { refreshKitchen(); startKitchenAutoRefresh(); startKitchenClock(); }
+  if(tab==='kitchen')   { refreshKitchen(); startKitchenAutoRefresh(); startKitchenClock(); setTimeout(function(){ if('Notification' in window && Notification.permission==='granted') { var b=document.getElementById('kitchen-notify-btn'); if(b){b.textContent='🔔 Alerts Enabled';b.style.background='rgba(39,174,96,.25)';} } },300); }
   else                  { stopKitchenAutoRefresh(); stopKitchenClock(); }
 }
 
@@ -3357,8 +3369,8 @@ document.getElementById('order-num').textContent=`Order #${String(orderCount).pa
 
 <script>
 /* ══ LOGIN — completely self-contained, no dependencies on other scripts ══ */
-function doLogin(){
-  /* Credentials — edit here and re-upload to GitHub to change */
+async function doLogin(){
+  /* Credentials — hardcoded fallback plus cashier accounts from Google Sheets */
   var ACCOUNTS = [
     { username:'owner',    password:'1234', role:'Owner',   badge:'&#128081; Owner Logged In', color:'av-b' },
     { username:'Wahlene',  password:'1234', role:'Staff',   badge:'&#128100; Wahlene',         color:'av-t' },
@@ -3371,7 +3383,6 @@ function doLogin(){
   var userEl = document.getElementById('login-name');
   var passEl = document.getElementById('login-pass');
   var errEl  = document.getElementById('login-err');
-
   var username = (userEl ? userEl.value : '').trim();
   var password = (passEl ? passEl.value : '').trim();
   if(errEl) errEl.textContent = '';
@@ -3381,69 +3392,105 @@ function doLogin(){
     return;
   }
 
-  /* Check hardcoded accounts */
   var match = null;
-  for(var i = 0; i < ACCOUNTS.length; i++){
-    if(ACCOUNTS[i].username.toLowerCase() === username.toLowerCase() &&
-       ACCOUNTS[i].password === password){
-      match = ACCOUNTS[i];
+  var normalizedUser = username.toLowerCase();
+
+  /* 1) Check permanent local fallback accounts first */
+  for(var i=0;i<ACCOUNTS.length;i++){
+    if(String(ACCOUNTS[i].username).toLowerCase()===normalizedUser &&
+       String(ACCOUNTS[i].password)===String(password)){
+      match=ACCOUNTS[i];
       break;
     }
   }
 
-  /* Check cashiers added in the Cashier tab */
+  /* 2) Check locally cached cashier accounts */
   if(!match){
-    var stored = [];
-    try{ stored = JSON.parse(localStorage.getItem('gtg_cashiers') || '[]'); }catch(e){}
-    for(var j = 0; j < stored.length; j++){
-      var sc = stored[j];
-      if(sc.name && sc.name.toLowerCase() === username.toLowerCase() &&
-         String(sc.pin) === String(password)){
-        match = { username:sc.name, password:password, role:sc.role||'Staff',
-                  badge:'&#128100; '+sc.name.split(' ')[0], color:sc.color||'av-t' };
+    var stored=[];
+    try{ stored=JSON.parse(localStorage.getItem('gtg_cashiers')||'[]'); }catch(e){}
+    for(var j=0;j<stored.length;j++){
+      var sc=stored[j];
+      if(sc.name && String(sc.name).trim().toLowerCase()===normalizedUser &&
+         String(sc.pin).trim()===String(password)){
+        match={username:sc.name,password:password,role:sc.role||'Staff',
+               badge:'&#128100; '+sc.name.split(' ')[0],color:sc.color||'av-t'};
         break;
       }
     }
   }
 
-  /* Wrong credentials */
+  /* 3) IMPORTANT: on a new tablet, localStorage is empty.
+        Fetch the cashier roster directly from Google Sheets before rejecting login. */
+  if(!match && typeof SHEETS_URL!=='undefined' && SHEETS_URL){
+    if(errEl) errEl.textContent='Checking staff credentials…';
+    try{
+      var remote=await _call(SHEETS_URL,'getCashiers',{});
+      if(remote && Array.isArray(remote.items)){
+        var remoteCashiers=remote.items.map(function(it){
+          return {
+            id:parseInt(it.id)||1,
+            name:it.name||'',
+            role:it.role||'Cashier',
+            pin:String(it.pin==null?'':it.pin).trim(),
+            color:it.color||'av-t',
+            active:it.active===true||it.active==='true'
+          };
+        }).filter(function(c){ return c.name; });
+
+        if(remoteCashiers.length){
+          cashiers=remoteCashiers;
+          try{ localStorage.setItem('gtg_cashiers',JSON.stringify(cashiers)); }catch(e){}
+          if(typeof renderCashierRoster==='function') renderCashierRoster();
+
+          for(var k=0;k<remoteCashiers.length;k++){
+            var rc=remoteCashiers[k];
+            if(String(rc.name).trim().toLowerCase()===normalizedUser &&
+               String(rc.pin).trim()===String(password)){
+              match={username:rc.name,password:password,role:rc.role||'Staff',
+                     badge:'&#128100; '+rc.name.split(' ')[0],color:rc.color||'av-t'};
+              break;
+            }
+          }
+        }
+      }
+    }catch(e){
+      console.warn('Remote credential check failed:',e);
+    }
+  }
+
   if(!match){
     if(errEl) errEl.textContent = 'Invalid username or password.';
-    var box = document.querySelector('.login-box');
+    var box=document.querySelector('.login-box');
     if(box){ box.style.animation='none'; void box.offsetWidth; box.style.animation='loginShake .35s ease'; }
     return;
   }
 
-  /* ── Success ── */
-  try{ localStorage.setItem('gtg_user', JSON.stringify(match)); }catch(e){}
-
-  if(typeof googleUser !== 'undefined'){
-    googleUser = { name:match.username, email:match.role,
-                   sub:match.username.toLowerCase().replace(/\s+/g,'_') };
-    try{ localStorage.setItem('gtg_google_user', JSON.stringify(googleUser)); }catch(e){}
+  try{ localStorage.setItem('gtg_user',JSON.stringify(match)); }catch(e){}
+  if(typeof googleUser!=='undefined'){
+    googleUser={name:match.username,email:match.role,
+                sub:match.username.toLowerCase().replace(/\s+/g,'_')};
+    try{ localStorage.setItem('gtg_google_user',JSON.stringify(googleUser)); }catch(e){}
   }
 
-  var active = document.getElementById('active-cashier');
-  if(active) active.innerHTML = match.badge;
-
-  var lb = document.getElementById('logout-btn');
-  if(lb) lb.style.display = 'inline-flex';
+  var active=document.getElementById('active-cashier');
+  if(active) active.innerHTML=match.badge;
+  var lb=document.getElementById('logout-btn');
+  if(lb) lb.style.display='inline-flex';
 
   try{
-    if(typeof shiftLog !== 'undefined'){
-      var entry = { name:match.username, type:'IN',
+    if(typeof shiftLog!=='undefined'){
+      var entry={name:match.username,type:'IN',
         shift:(document.getElementById('c-shift-sel')||{value:''}).value||'Shift',
-        color:match.color, time:new Date().toLocaleString('en-PH') };
+        color:match.color,time:new Date().toLocaleString('en-PH')};
       shiftLog.unshift(entry);
-      if(shiftLog.length > 30) shiftLog.length = 30;
-      if(typeof renderShiftLog === 'function') renderShiftLog();
-      if(typeof pushShiftToSheets === 'function') pushShiftToSheets(entry);
+      if(shiftLog.length>30) shiftLog.length=30;
+      if(typeof renderShiftLog==='function') renderShiftLog();
+      if(typeof pushShiftToSheets==='function') pushShiftToSheets(entry);
     }
   }catch(e){}
 
-  if(typeof onSignedIn === 'function') onSignedIn();
+  if(typeof onSignedIn==='function') onSignedIn();
 }
-
 /* ═══════════════════ BLUETOOTH PRINTER ═══════════════════ */
 var _btDevice = null;
 
@@ -4083,8 +4130,96 @@ var kitchenOrders = (function(){
 })();
 var _kitchenShowDone = false;
 var _kitchenTimer    = null;
+var _kitchenSeenIds  = {};
+var _kitchenAlertInitialized = false;
+var _kitchenAlertAudio = null;
+
+try{
+  var _seenSaved=JSON.parse(localStorage.getItem('gtg_kitchen_seen_ids')||'{}');
+  if(_seenSaved && typeof _seenSaved==='object') _kitchenSeenIds=_seenSaved;
+}catch(e){}
 
 function _saveKitchenOrders(){ try{ localStorage.setItem('gtg_kitchen_orders', JSON.stringify(kitchenOrders.slice(-200))); }catch(e){} }
+function _saveKitchenSeenIds(){
+  try{
+    var keys=Object.keys(_kitchenSeenIds);
+    if(keys.length>300) keys=keys.slice(keys.length-300);
+    var compact={};
+    keys.forEach(function(k){ compact[k]=_kitchenSeenIds[k]; });
+    _kitchenSeenIds=compact;
+    localStorage.setItem('gtg_kitchen_seen_ids',JSON.stringify(_kitchenSeenIds));
+  }catch(e){}
+}
+
+async function enableKitchenNotifications(){
+  var btn=document.getElementById('kitchen-notify-btn');
+  try{
+    if('Notification' in window){
+      if(Notification.permission==='default') await Notification.requestPermission();
+      if(Notification.permission==='granted'){
+        if(btn){ btn.textContent='🔔 Alerts Enabled'; btn.style.background='rgba(39,174,96,.25)'; }
+        showToast('🔔 Kitchen alerts enabled on this tablet.','success');
+        return;
+      }
+    }
+    if(btn) btn.textContent='🔔 In-App Alerts Active';
+    showToast('Kitchen in-app alerts are active. Browser notifications are unavailable or blocked.','warning');
+  }catch(e){
+    if(btn) btn.textContent='🔔 In-App Alerts Active';
+    showToast('In-app kitchen alerts are active.','warning');
+  }
+}
+
+function _beepKitchenAlert(){
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC) return;
+    if(!_kitchenAlertAudio) _kitchenAlertAudio=new AC();
+    var ctx=_kitchenAlertAudio;
+    if(ctx.state==='suspended') ctx.resume();
+    [0,0.22,0.44].forEach(function(delay){
+      var osc=ctx.createOscillator(), gain=ctx.createGain();
+      osc.type='sine'; osc.frequency.value=880;
+      gain.gain.setValueAtTime(0.0001,ctx.currentTime+delay);
+      gain.gain.exponentialRampToValueAtTime(0.22,ctx.currentTime+delay+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+delay+0.18);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(ctx.currentTime+delay); osc.stop(ctx.currentTime+delay+0.2);
+    });
+  }catch(e){}
+}
+
+function _showKitchenOrderAlert(ko){
+  if(!ko || ko.status==='done') return;
+  _beepKitchenAlert();
+  try{ if(navigator.vibrate) navigator.vibrate([250,120,250,120,450]); }catch(e){}
+
+  var overlay=document.getElementById('kitchen-alert-overlay');
+  if(overlay){
+    document.getElementById('kitchen-alert-order').textContent='Order #'+(ko.orderNum||'');
+    document.getElementById('kitchen-alert-table').textContent=ko.table||'Walk-in';
+    document.getElementById('kitchen-alert-items').textContent=(ko.items||[]).map(function(i){return (i.qty||1)+'× '+i.name;}).join(' • ');
+    overlay.style.display='flex';
+    clearTimeout(window._kitchenAlertCloseTimer);
+    window._kitchenAlertCloseTimer=setTimeout(function(){overlay.style.display='none';},9000);
+  }
+
+  if('Notification' in window && Notification.permission==='granted'){
+    try{
+      var n=new Notification('🍳 NEW KITCHEN ORDER', {
+        body:'Order #'+(ko.orderNum||'')+' • '+(ko.table||'Walk-in')+' • '+(ko.items||[]).map(function(i){return (i.qty||1)+'× '+i.name;}).join(', '),
+        tag:'kitchen-'+ko.id,
+        renotify:true
+      });
+      n.onclick=function(){ window.focus(); n.close(); };
+    }catch(e){}
+  }
+}
+
+function dismissKitchenAlert(){
+  var overlay=document.getElementById('kitchen-alert-overlay');
+  if(overlay) overlay.style.display='none';
+}
 
 /* ── Send to Kitchen ──────────────────────────────────────── */
 function sendToKitchen(){
@@ -4209,7 +4344,7 @@ function toggleKitchenDone(){
 /* ── Auto-refresh kitchen from Sheets every 30s ────────────── */
 function startKitchenAutoRefresh(){
   stopKitchenAutoRefresh();
-  _kitchenTimer = setInterval(function(){ refreshKitchen(); }, 30000);
+  _kitchenTimer = setInterval(function(){ refreshKitchen(); }, 5000);
 }
 function stopKitchenAutoRefresh(){ if(_kitchenTimer){ clearInterval(_kitchenTimer); _kitchenTimer=null; } }
 
@@ -4217,7 +4352,6 @@ async function refreshKitchen(){
   if(!SHEETS_URL){ renderKitchen(); return; }
   var res = await sheetsCall('getKitchenOrders');
   if(res && res.orders && res.orders.length){
-    // Merge Sheet orders with local (Sheet is the source of truth for multi-device)
     var sheetOrders = res.orders.map(function(o){
       return {
         id:       parseInt(o.id)||0,
@@ -4231,9 +4365,26 @@ async function refreshKitchen(){
         status:   o.status||'pending'
       };
     });
-    // Only replace with sheet data that is NOT older than 8 hours
     var cutoff = Date.now() - (8*60*60*1000);
-    kitchenOrders = sheetOrders.filter(function(o){ return o.sentAt > cutoff; });
+    sheetOrders = sheetOrders.filter(function(o){ return o.sentAt > cutoff; });
+
+    /* First successful load establishes the baseline; later loads alert only for new IDs. */
+    if(!_kitchenAlertInitialized){
+      sheetOrders.forEach(function(o){ _kitchenSeenIds[String(o.id)]=true; });
+      _kitchenAlertInitialized=true;
+      _saveKitchenSeenIds();
+    }else{
+      var fresh=sheetOrders.filter(function(o){
+        return o.status!=='done' && !_kitchenSeenIds[String(o.id)];
+      });
+      fresh.forEach(function(o){
+        _kitchenSeenIds[String(o.id)]=true;
+        _showKitchenOrderAlert(o);
+      });
+      if(fresh.length) _saveKitchenSeenIds();
+    }
+
+    kitchenOrders = sheetOrders;
     _saveKitchenOrders();
   }
   renderKitchen();
