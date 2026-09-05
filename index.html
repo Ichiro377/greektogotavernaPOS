@@ -853,7 +853,10 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
         </div>
       </div>
       <!-- SEND TO KITCHEN -->
-      <button onclick="sendToKitchen()" style="width:100%;padding:10px;border-radius:10px;border:none;background:#E65100;color:#fff;font-family:Nunito,sans-serif;font-weight:800;font-size:13px;cursor:pointer;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px;">🍳 Send to Kitchen</button>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:6px;margin-bottom:6px;">
+        <button onclick="sendToKitchen()" style="padding:10px;border-radius:10px;border:none;background:#E65100;color:#fff;font-family:Nunito,sans-serif;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">🍳 Send to Kitchen</button>
+        <button onclick="manualNotifyKitchen()" title="Ping the kitchen display without sending an order" style="padding:10px 14px;border-radius:10px;border:1.5px solid #E65100;background:#fff;color:#E65100;font-family:Nunito,sans-serif;font-weight:800;font-size:16px;cursor:pointer;">🔔</button>
+      </div>
       <!-- HOLD & SPLIT -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
         <button onclick="holdOrder()" style="padding:9px;border-radius:10px;border:1.5px solid var(--blue-pale);background:#fff;color:var(--blue-deep);font-family:Nunito,sans-serif;font-weight:800;font-size:12px;cursor:pointer;">⏸ Hold Order</button>
@@ -4117,23 +4120,30 @@ function _kitchenBeep(){
     var Ctx = window.AudioContext || window.webkitAudioContext;
     if(!Ctx) return;
     var ctx = new Ctx();
-    [0, 0.18].forEach(function(delay){
+    // Louder, sharper 3-tone alarm (square wave, alternating pitch) so it cuts
+    // through a noisy kitchen — replaces the old soft double sine beep.
+    var tones = [
+      {delay:0,    freq:1046},
+      {delay:0.22, freq:784},
+      {delay:0.44, freq:1046}
+    ];
+    tones.forEach(function(tone){
       var osc = ctx.createOscillator(), gain = ctx.createGain();
-      osc.type = 'sine'; osc.frequency.value = 880;
+      osc.type = 'square'; osc.frequency.value = tone.freq;
       osc.connect(gain); gain.connect(ctx.destination);
-      var t0 = ctx.currentTime + delay;
+      var t0 = ctx.currentTime + tone.delay;
       gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.exponentialRampToValueAtTime(0.3, t0 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
-      osc.start(t0); osc.stop(t0 + 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.7, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+      osc.start(t0); osc.stop(t0 + 0.2);
     });
   } catch(e){ /* Web Audio blocked before any user gesture on the page — ignore */ }
 }
 
-function _flashKitchenAlert(newCount){
+function _flashKitchenAlert(newCount, customMsg){
   var view = document.getElementById('kitchen-view');
   var banner = document.getElementById('kitchen-alert-banner');
-  var msg = newCount > 1 ? ('🔔 '+newCount+' new orders from POS!') : '🔔 New order from POS!';
+  var msg = customMsg || (newCount > 1 ? ('🔔 '+newCount+' new orders from POS!') : '🔔 New order from POS!');
 
   if(banner){
     banner.textContent = msg;
@@ -4148,6 +4158,14 @@ function _flashKitchenAlert(newCount){
   }
   _kitchenBeep();
   showToast(msg,'info');
+}
+
+/* ── Manual notify: staff can ping the kitchen display directly, with no
+   order attached — e.g. to ask them to check the display or flag something
+   verbally. Reuses the same beep/flash/banner as a real order alert. ── */
+function manualNotifyKitchen(){
+  _flashKitchenAlert(0, '🔔 Attention needed — check with the front!');
+  showToast('🔔 Kitchen notified','success');
 }
 
 /* ── Send to Kitchen ──────────────────────────────────────── */
