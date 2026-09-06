@@ -681,6 +681,14 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
 }
 
 </style>
+<style id="gtg-receipt-final-safety">
+/* FINAL RECEIPT SAFETY: legacy Loyalty Club promotion is never displayed. */
+#receipt-modal .loyalty-club,
+#receipt-modal [id*="loyalty" i],
+#receipt-modal [class*="loyalty" i],
+#receipt-modal [alt*="loyalty" i],
+#receipt-modal img[src*="qr" i] { display:none !important; }
+</style>
 </head>
 <body>
 
@@ -4448,13 +4456,31 @@ setTimeout(_updateSyncBadge, 500);
 </div>
 
 <script>
-if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){
-    navigator.serviceWorker.register('sw.js')
-      .then(function(r){ console.log('SW ok'); })
-      .catch(function(e){ console.log('SW fail',e); });
-  });
-}
+/* ═══════════════════════════════════════════════════════════════════════
+   CACHE / SERVICE-WORKER CLEANUP
+   This POS must always run the current HTML. Older deployments registered
+   sw.js and could keep serving an old receipt containing the Loyalty Club
+   card even after the HTML was updated. Unregister old workers and clear
+   their caches on startup. We intentionally do NOT register a new worker.
+   ═══════════════════════════════════════════════════════════════════════ */
+(function(){
+  try {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs){
+        regs.forEach(function(reg){
+          try { reg.unregister(); } catch(e) {}
+        });
+      }).catch(function(){});
+    }
+    if ('caches' in window) {
+      caches.keys().then(function(keys){
+        keys.forEach(function(key){
+          try { caches.delete(key); } catch(e) {}
+        });
+      }).catch(function(){});
+    }
+  } catch(e) {}
+})();
 
 /* ═══════════════════════════════════════════════════════════
    PRINTER SETTINGS & WIFI/RAWBT PRINTING
