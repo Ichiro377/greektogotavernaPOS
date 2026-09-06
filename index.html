@@ -1794,7 +1794,7 @@ async function pushInventoryToSheets(silent){
   var rows = validItems.map(function(i){
     var m = _mapInvItem(i,0);
     return { itemCode:m.itemCode, description:m.description, category:m.category,
-             price:m.price, unit:m.unit, begBal:m.begBal, endingStock:m.endingStock,
+             price:m.price, begBal:m.begBal, endingStock:m.endingStock,
              uom:m.uom, supplier:m.supplier };
   });
   if(!silent) showToast('⬆ Syncing '+rows.length+' items to Sheet…','info');
@@ -6267,7 +6267,7 @@ async function pushInventoryToSheets(silent){
   var rows = validItems.map(function(i){
     var m = _mapInvItem(i,0);
     return { itemCode:m.itemCode, description:m.description, category:m.category,
-             price:m.price, unit:m.unit, begBal:m.begBal, endingStock:m.endingStock,
+             price:m.price, begBal:m.begBal, endingStock:m.endingStock,
              uom:m.uom, supplier:m.supplier };
   });
   if(!silent) showToast('⬆ Syncing '+rows.length+' items to Sheet…','info');
