@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="greektogo-version" content="POS-51-FIXED">
   <link rel="manifest" href="manifest.json">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -727,7 +728,7 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
         <div class="s-step"><div class="s-step-num">3</div><div class="s-step-txt">Click <strong>Deploy → New Deployment → Web App</strong>. Set <em>Execute as: Me</em> and <em>Who has access: Anyone</em>. Copy the URL.</div></div>
         <div class="s-step"><div class="s-step-num">4</div><div class="s-step-txt">Paste the deployment URL below and click Connect.</div></div>
       </div>
-      <input class="sheets-url-input" type="text" id="sheets-url-field" placeholder="https://script.google.com/macros/s/…/exec">
+      <input class="sheets-url-input" type="text" id="sheets-url-field" readonly aria-label="Google Apps Script URL">
       <div class="sheets-status-row" id="sheets-conn-status"></div>
     </div>
     <div class="modal-actions">
@@ -1440,7 +1441,7 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
 /* ═══════════════════ CONFIG ═══════════════════ */
 // ── Google Sheets URL — hardcoded, works on every browser/device ──
 // ── HARDCODED — never needs localStorage or manual setup ──────────────────
-const SHEETS_URL_PERMANENT = 'https://script.google.com/macros/s/AKfycbxI74ANQbulTjXljEvp8xBGLu4Rtxv4Lcspho8P58XK763ABmW8OCDOp8vfZJBcmTYobA/exec';
+const SHEETS_URL_PERMANENT = 'https://script.google.com/macros/s/AKfycbxekBOUqNmRgmPuLj96dtbI5tCJ4aGo6QV0dZ265nAGrhWgWG5-3BmGybb0_bzc6SvtwQ/exec';
 let SHEETS_URL = SHEETS_URL_PERMANENT;
 
 // ── Printer Configuration ─────────────────────────────────────────────
@@ -2440,15 +2441,6 @@ async function finalizePayment(method,gcashNum,gcashRef){
 function newOrder(){
   clearOrder();
   document.getElementById('order-num').textContent=`Order #${String(orderCount).padStart(4,'0')}`;
-// Auto-connect to Google Sheets on load (URL is hardcoded) else if(SHEETS_URL){
-  setDBStatus('loading','Connecting to Google Sheets…');
-  setTimeout(function(){
-    _call(SHEETS_URL,'ping',{}).then(function(r){
-      if(r){ _sheetsOnline=true; setDBStatus('connected','Google Sheets ✓'); _startHeartbeat(); }
-      else { setDBStatus('disconnected','Offline — login to retry'); }
-    });
-  }, 1200);
-setDBStatus('disconnected','No Sheet — Offline');
 }
 
 /* ═══════════════════ DELIVERY ORDERS ═══════════════════ */
@@ -3136,7 +3128,13 @@ function openSheetsSetup() {
 }
 
 async function connectSheets() {
-  var url = document.getElementById('sheets-url-field').value.trim();
+  // Always use the permanent deployment URL. The editable field is display-only
+  // so an old/stale localStorage value can never replace the configured script.
+  var url = SHEETS_URL_PERMANENT;
+  var field = document.getElementById('sheets-url-field');
+  if(field) field.value = SHEETS_URL_PERMANENT;
+  SHEETS_URL = SHEETS_URL_PERMANENT;
+  try{ localStorage.setItem('greektogo_sheets_url', SHEETS_URL_PERMANENT); }catch(e){}
   var statusEl = document.getElementById('sheets-conn-status');
   if (!url || !url.includes('script.google.com')) {
     statusEl.textContent = '❌ Enter a valid Apps Script Web App URL.';
@@ -3328,8 +3326,10 @@ function loginPinBack() {
   if (saved && autoLogin) {
     try {
       googleUser = JSON.parse(saved);
-      var savedUrl = localStorage.getItem('gtg_sheets_url_' + googleUser.sub) || localStorage.getItem('greektogo_sheets_url') || '';
-      if (savedUrl) { SHEETS_URL = savedUrl; }
+      // Always use the permanent deployment URL. Do not restore an old/stale URL
+      // from localStorage, which previously caused the POS to ask for the script again.
+      SHEETS_URL = SHEETS_URL_PERMANENT;
+      try { localStorage.setItem('greektogo_sheets_url', SHEETS_URL_PERMANENT); } catch(e) {}
       onSignedIn();
       return;
     } catch(e) {}
