@@ -689,6 +689,7 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
 #receipt-modal [alt*="loyalty" i],
 #receipt-modal img[src*="qr" i] { display:none !important; }
 </style>
+<meta name="gtg-build" content="POS-52-KITCHEN-NOTIFY">
 </head>
 <body>
 
@@ -861,8 +862,11 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
           </div>
         </div>
       </div>
-      <!-- SEND TO KITCHEN -->
-      <button onclick="sendToKitchen()" style="width:100%;padding:10px;border-radius:10px;border:none;background:#E65100;color:#fff;font-family:Nunito,sans-serif;font-weight:800;font-size:13px;cursor:pointer;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px;">🍳 Send to Kitchen</button>
+      <!-- KITCHEN ACTIONS -->
+      <div style="display:grid;grid-template-columns:1.15fr .85fr;gap:6px;margin-bottom:6px;">
+        <button onclick="sendToKitchen()" style="padding:10px;border-radius:10px;border:none;background:#E65100;color:#fff;font-family:Nunito,sans-serif;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">🍳 Send to Kitchen</button>
+        <button onclick="notifyKitchen()" style="padding:10px;border-radius:10px;border:none;background:#C9A84C;color:#0B2545;font-family:Nunito,sans-serif;font-weight:900;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">🔔 Notify Kitchen</button>
+      </div>
       <!-- HOLD & SPLIT -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
         <button onclick="holdOrder()" style="padding:9px;border-radius:10px;border:1.5px solid var(--blue-pale);background:#fff;color:var(--blue-deep);font-family:Nunito,sans-serif;font-weight:800;font-size:12px;cursor:pointer;">⏸ Hold Order</button>
@@ -4187,6 +4191,50 @@ function sendToKitchen(){
   if(document.getElementById('kitchen-view').classList.contains('active')) renderKitchen();
 }
 
+/* ── Notify Kitchen ─────────────────────────────────────────
+   Sends a lightweight notification to the Kitchen Display. It uses the same
+   Google Sheets kitchen-order channel, so it works across different devices.
+   The special note prefix is retained by the existing Apps Script backend. ── */
+function notifyKitchen(){
+  var tableEl = document.getElementById('table-num');
+  var custEl  = document.getElementById('cust-name');
+  var table   = (tableEl&&tableEl.value) ? tableEl.value : 'Walk-in';
+  var customer= (custEl&&custEl.value) ? custEl.value : '';
+  var ordNo   = (typeof orderCount!=='undefined') ? String(orderCount).padStart(4,'0') : '';
+  var defaultMsg = ordNo ? ('Please check Order #'+ordNo+' • '+table) : 'Please check the POS terminal.';
+  var msg = window.prompt('Message for Kitchen Display:', defaultMsg);
+  if(msg === null) return;
+  msg = String(msg).trim();
+  if(!msg){ showToast('Notification message is empty.','error'); return; }
+
+  var ko = {
+    id:       Date.now()+Math.floor(Math.random()*1000),
+    orderNum: ordNo,
+    table:    table,
+    customer: customer,
+    notes:    '__KITCHEN_NOTIFICATION__:'+msg,
+    cashier:  (typeof activeCashier!=='undefined') ? activeCashier : '',
+    items:    [],
+    sentAt:   Date.now(),
+    status:   'pending'
+  };
+
+  kitchenOrders.push(ko);
+  _saveKitchenOrders();
+  if(SHEETS_URL) sheetsCall('addKitchenOrder',{order:ko});
+
+  showToast('🔔 Kitchen notified!','success');
+  _flashKitchenAlert(1);
+  if(document.getElementById('kitchen-view').classList.contains('active')) renderKitchen();
+}
+
+function _isKitchenNotification(ko){
+  return !!(ko && typeof ko.notes==='string' && ko.notes.indexOf('__KITCHEN_NOTIFICATION__:')===0);
+}
+function _kitchenNotificationText(ko){
+  return _isKitchenNotification(ko) ? ko.notes.slice('__KITCHEN_NOTIFICATION__:'.length) : '';
+}
+
 /* ── Kitchen Display Render ───────────────────────────────── */
 function renderKitchen(){
   var now      = Date.now();
@@ -4222,6 +4270,19 @@ function renderKitchen(){
     var isDone  = ko.status === 'done';
     var bg      = isDone ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.08)';
     var border  = isDone ? '2px solid rgba(255,255,255,.1)' : '2px solid '+color;
+    var isNotif = _isKitchenNotification(ko);
+
+    if(isNotif){
+      var nmsg = _kitchenNotificationText(ko);
+      return '<div style="background:'+(isDone?'rgba(255,255,255,.05)':'rgba(201,168,76,.14)')+';border:'+(isDone?'2px solid rgba(255,255,255,.1)':'2px solid #C9A84C')+';border-radius:14px;padding:16px;opacity:'+(isDone?'0.5':'1')+'">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+        +'<div style="font-size:16px;font-weight:900;color:#fff">🔔 Kitchen Notification</div>'
+        +'<div style="font-size:10px;color:rgba(255,255,255,.5)">'+timeStr+'</div></div>'
+        +'<div style="font-size:14px;line-height:1.45;color:#FFE9A8;background:rgba(0,0,0,.12);border-radius:10px;padding:11px;margin-bottom:10px">'+nmsg+'</div>'
+        +(ko.table?'<div style="font-size:10px;color:rgba(255,255,255,.45);margin-bottom:10px">Table: '+ko.table+(ko.orderNum?' • Order #'+ko.orderNum:'')+'</div>':'')
+        +(isDone ? '<div style="text-align:center;font-size:12px;color:rgba(255,255,255,.3)">✅ Acknowledged</div>' : '<button onclick="markKitchenDone('+ko.id+')" style="width:100%;padding:10px;border:none;border-radius:10px;background:#C9A84C;color:#0B2545;font-family:Nunito,sans-serif;font-weight:900;font-size:13px;cursor:pointer">🔔 Acknowledge</button>')
+        +'</div>';
+    }
 
     return '<div style="background:'+bg+';border:'+border+';border-radius:14px;padding:14px;opacity:'+(isDone?'0.5':'1')+'">'
       // Header
