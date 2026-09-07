@@ -9,8 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="G2G POS">
   <meta name="theme-color" content="#0B2545">
   <link rel="apple-touch-icon" href="icon-192.png">
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>GREEK TO GO TAVERNA POS</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Nunito:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
@@ -661,6 +660,172 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
   display:inline-block;
 }
 
+/* ══════════════════════════════════════════════════
+   ANALYTICS
+══════════════════════════════════════════════════ */
+#analytics-view{flex-direction:column;padding:clamp(14px,2vw,24px);gap:16px;overflow-y:auto;min-height:calc(100dvh - 64px);}
+.analytics-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.analytics-head h2{font-family:'Cinzel',serif;font-size:clamp(18px,2vw,23px);color:var(--blue-deep);margin:0;}
+.analytics-sub{font-size:11px;color:var(--gray-soft);margin-top:3px;}
+.analytics-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.analytics-select{border:1.5px solid var(--blue-pale);border-radius:10px;padding:9px 34px 9px 12px;background:#fff;color:var(--blue-deep);font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;cursor:pointer;outline:none;}
+.analytics-select:focus{border-color:var(--blue-accent);}
+.analytics-kpis{display:grid;grid-template-columns:repeat(5,minmax(145px,1fr));gap:12px;}
+.analytics-kpi{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-card);padding:15px 16px;border-top:4px solid var(--blue-accent);min-width:0;}
+.analytics-kpi:nth-child(2){border-top-color:var(--success);}
+.analytics-kpi:nth-child(3){border-top-color:var(--gold);}
+.analytics-kpi:nth-child(4){border-top-color:#8E44AD;}
+.analytics-kpi:nth-child(5){border-top-color:var(--danger);}
+.analytics-kpi-label{font-size:10px;font-weight:800;color:var(--gray-soft);text-transform:uppercase;letter-spacing:.45px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.analytics-kpi-value{font-size:clamp(18px,2vw,25px);font-weight:900;color:var(--blue-deep);margin-top:4px;overflow:hidden;text-overflow:ellipsis;}
+.analytics-kpi-note{font-size:10px;color:var(--gray-soft);margin-top:2px;}
+.analytics-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;align-items:start;}
+.analytics-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-card);padding:18px;min-width:0;}
+.analytics-card.wide{grid-column:span 8;}
+.analytics-card.narrow{grid-column:span 4;}
+.analytics-card.half{grid-column:span 6;}
+.analytics-card-title{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;font-weight:900;color:var(--blue-deep);margin-bottom:14px;}
+.analytics-card-title small{font-size:10px;color:var(--gray-soft);font-weight:700;}
+.analytics-chart-scroll{overflow-x:auto;padding:2px 2px 4px;-webkit-overflow-scrolling:touch;}
+.analytics-bars{height:215px;display:flex;align-items:flex-end;gap:7px;min-width:520px;padding-top:24px;border-bottom:1px solid var(--blue-pale);}
+.analytics-bar-col{height:100%;flex:1;min-width:20px;display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;position:relative;}
+.analytics-bar-value{text-align:center;font-size:9px;color:var(--gray-soft);margin-bottom:4px;white-space:nowrap;}
+.analytics-bar-track{height:160px;display:flex;align-items:flex-end;justify-content:center;background:linear-gradient(to top,rgba(214,232,250,.28),rgba(238,245,253,.05));border-radius:7px 7px 0 0;overflow:hidden;}
+.analytics-bar-fill{width:72%;min-height:0;background:linear-gradient(180deg,var(--blue-light),var(--blue-accent));border-radius:7px 7px 0 0;transition:height .35s ease;}
+.analytics-bar-label{text-align:center;font-size:9px;color:var(--gray-soft);margin-top:6px;white-space:nowrap;}
+.analytics-list{display:flex;flex-direction:column;gap:11px;}
+.analytics-list-head{display:flex;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:4px;}
+.analytics-list-name{font-weight:800;color:var(--blue-deep);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.analytics-list-value{color:var(--gray-soft);font-weight:700;white-space:nowrap;}
+.analytics-progress{height:8px;background:var(--blue-ghost);border-radius:99px;overflow:hidden;}
+.analytics-progress-fill{height:100%;background:var(--blue-accent);border-radius:99px;min-width:0;}
+.analytics-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.analytics-table{width:100%;min-width:430px;border-collapse:collapse;font-size:12px;}
+.analytics-table th{text-align:left;color:var(--gray-soft);font-size:10px;text-transform:uppercase;letter-spacing:.35px;padding:0 8px 8px;}
+.analytics-table td{padding:8px;border-top:1px solid var(--blue-ghost);}
+.analytics-table th:nth-child(n+2),.analytics-table td:nth-child(n+2){text-align:right;}
+.analytics-rank{display:inline-flex;width:22px;height:22px;border-radius:7px;background:var(--blue-ghost);align-items:center;justify-content:center;font-size:10px;font-weight:900;color:var(--blue-accent);margin-right:7px;}
+.analytics-insights{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.analytics-insight{background:linear-gradient(145deg,#fff,var(--blue-ghost));border:1px solid var(--blue-pale);border-radius:12px;padding:13px;min-width:0;}
+.analytics-insight-icon{font-size:20px;}
+.analytics-insight-label{font-size:9px;color:var(--gray-soft);font-weight:800;text-transform:uppercase;margin-top:7px;}
+.analytics-insight-value{font-size:13px;color:var(--blue-deep);font-weight:900;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.analytics-empty{text-align:center;color:var(--gray-soft);padding:28px 12px;font-size:12px;}
+.analytics-source{font-size:10px;color:var(--gray-soft);text-align:right;}
+
+/* ══════════════════════════════════════════════════
+   RESPONSIVE HARDENING — desktop, tablet, phone and safe areas
+══════════════════════════════════════════════════ */
+html{min-width:320px;min-height:100%;}
+body{min-height:100dvh;overscroll-behavior-y:none;}
+.header{display:grid;grid-template-columns:max-content minmax(0,1fr) max-content;gap:12px;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));}
+.header-nav{min-width:0;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch;justify-content:center;}
+.header-nav::-webkit-scrollbar{display:none;}
+.header-right{min-width:0;justify-content:flex-end;}
+.tab-view.active{min-width:0;}
+.modal{max-height:calc(100dvh - 24px);overflow-y:auto;}
+#login-screen{padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));overflow-y:auto;}
+.login-box{max-height:calc(100dvh - 24px);overflow-y:auto;}
+button,input,select,textarea{touch-action:manipulation;}
+.mobile-order-dock,.mobile-menu-btn{display:none;}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(46,125,209,.35);outline-offset:2px;}
+#pos-view{height:calc(100dvh - 64px);}
+
+@media(max-width:1280px){
+  .analytics-kpis{grid-template-columns:repeat(3,minmax(150px,1fr));}
+}
+@media(max-width:1180px){
+  .header{height:auto;min-height:64px;grid-template-columns:minmax(0,1fr) max-content;padding-top:max(8px,env(safe-area-inset-top));padding-bottom:8px;gap:7px 10px;}
+  .logo{min-width:0;}
+  .header-nav{grid-column:1/-1;grid-row:2;justify-content:flex-start;width:100%;padding-bottom:2px;}
+  .header-right{grid-column:2;grid-row:1;}
+  .nav-btn{flex:0 0 auto;}
+  #reports-view,#pos-menu-view,#kitchen-view,#analytics-view,#inventory-view,.delivery-view{min-height:calc(100dvh - 104px)!important;}
+  #pos-view,#cashier-view,.delivery-view{height:calc(100dvh - 104px);}
+}
+@media(max-width:900px){
+  .analytics-card.wide,.analytics-card.narrow,.analytics-card.half{grid-column:span 12;}
+  .analytics-insights{grid-template-columns:repeat(2,minmax(0,1fr));}
+  #pos-view{position:relative;height:calc(100dvh - 104px);min-height:320px;overflow:hidden;flex-direction:column;}
+  #pos-view .menu-panel{display:flex;width:100%;height:100%;min-height:0;border:0;}
+  #pos-view .menu-grid{padding-bottom:82px;}
+  #pos-view .order-panel{display:none;width:100%;height:100%;min-height:0;max-height:none;overflow-y:auto;overscroll-behavior:contain;box-shadow:none;border:0;}
+  #pos-view.mobile-order-open .menu-panel{display:none;}
+  #pos-view.mobile-order-open .order-panel{display:flex;}
+  #pos-view.mobile-order-open .mobile-order-dock{display:none;}
+  #pos-view.mobile-order-open .order-items{flex:0 0 auto;min-height:105px;max-height:none;overflow:visible;}
+  #pos-view.mobile-order-open .order-footer{max-height:none;overflow:visible;padding-bottom:max(18px,env(safe-area-inset-bottom));}
+  .order-header{position:sticky;top:0;z-index:5;gap:8px;}
+  .order-heading{flex:1;min-width:0;}
+  .mobile-menu-btn{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:7px 10px;border:1px solid rgba(255,255,255,.24);border-radius:9px;background:rgba(255,255,255,.1);color:#fff;font:800 11px 'Nunito',sans-serif;cursor:pointer;white-space:nowrap;}
+  .mobile-order-dock{position:fixed;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));z-index:90;display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:520px;margin:0 auto;padding:12px 15px;border:1px solid rgba(255,255,255,.2);border-radius:15px;background:linear-gradient(135deg,var(--blue-deep),var(--blue-mid));color:#fff;box-shadow:0 10px 30px rgba(11,37,69,.32);font-family:'Nunito',sans-serif;cursor:pointer;}
+  .mobile-order-dock-main{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:900;white-space:nowrap;}
+  .mobile-order-dock-main .cart-icon{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.12);font-size:16px;}
+  .mobile-cart-summary{font-size:11px;font-weight:800;color:var(--blue-pale);text-align:right;white-space:nowrap;}
+}
+@media(max-width:768px){
+  .header{display:grid;}
+  .header-nav{order:initial;}
+  .analytics-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .analytics-card{padding:14px;}
+  .analytics-bars{min-width:470px;height:205px;}
+  .analytics-head{align-items:stretch;}
+  .analytics-tools{width:100%;}
+  .analytics-select{flex:1;min-width:0;}
+}
+@media(max-width:640px){
+  .header{grid-template-columns:minmax(0,1fr) auto;padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right));}
+  .header-right{gap:5px;}
+  .clock,.logout-btn,#sync-retry-status{display:none!important;}
+  .g-user-name,.db-status span{display:none;}
+  .g-user-chip{padding-right:5px;}
+  #sync-error-badge{font-size:0!important;padding:5px 7px!important;}
+  #sync-error-badge::before{content:'⚠️';font-size:13px;}
+  .logo-text{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cashier-badge{max-width:82px;}
+  .nav-btn{min-height:40px;padding:7px 11px;scroll-snap-align:center;}
+  .header-nav{scroll-snap-type:x proximity;}
+  .analytics-tools .add-btn{min-height:42px;}
+  input,select,textarea{font-size:16px!important;}
+  .inv-table,.dlv-orders-card,.analytics-table-wrap{border-radius:10px;}
+  .modal-overlay{align-items:flex-end;padding:0;}
+  .modal{width:100%!important;max-width:none!important;max-height:92dvh;border-radius:20px 20px 0 0!important;padding:18px 16px max(18px,env(safe-area-inset-bottom));}
+  .toast{bottom:max(82px,calc(env(safe-area-inset-bottom) + 74px));}
+  .g-user-menu{position:fixed;top:auto;bottom:max(12px,env(safe-area-inset-bottom));left:10px;right:10px;min-width:0;z-index:600;border:1px solid var(--blue-pale);}
+  .order-meta-grid{grid-template-columns:1fr!important;}
+}
+@media(max-width:420px){
+  #analytics-view{padding:10px;gap:10px;}
+  .cashier-badge{display:none;}
+  .analytics-kpi{padding:12px 11px;}
+  .analytics-kpi-label{font-size:9px;}
+  .analytics-kpi-value{font-size:18px;}
+  .analytics-insights{grid-template-columns:1fr 1fr;gap:7px;}
+  .analytics-insight{padding:10px;}
+  .menu-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .modal{width:100%!important;padding:16px;}
+}
+@media(max-width:340px){
+  .analytics-kpis,.analytics-insights{grid-template-columns:1fr;}
+  .mobile-order-dock{left:8px;right:8px;padding:10px 12px;}
+  .mobile-order-dock-main{font-size:12px;}
+  .mobile-cart-summary{font-size:10px;}
+}
+@media(max-height:520px) and (max-width:900px){
+  #pos-view{height:calc(100dvh - 96px);min-height:230px;}
+  .menu-search-bar{padding-top:7px;padding-bottom:6px;}
+  .category-tabs{padding-top:6px;padding-bottom:6px;}
+  .mobile-order-dock{padding-top:9px;padding-bottom:9px;}
+}
+@media(hover:none) and (pointer:coarse){
+  .nav-btn,.pay-btn,.add-btn,.clear-btn,.m-save,.m-cancel,.sheets-connect-btn,.g-menu-btn{min-height:44px;}
+  .qty-btn{width:38px;height:38px;}
+  .menu-item{min-height:86px;}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important;}
+}
+
 </style>
 </head>
 <body>
@@ -693,28 +858,25 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
     <div style="font-weight:700;font-size:13px;color:#0B2545" id="g-menu-name">—</div>
     <div class="g-menu-email" id="g-menu-email">—</div>
   </div>
-  <button class="g-menu-btn" onclick="openSheetsSetup()">🔗 Connect Google Sheets</button>
-  <button class="g-menu-btn" onclick="openSheetsSetup()">⚙️ Sheets Settings</button>
+  <button class="g-menu-btn" onclick="openSheetsSetup()">🔄 Reconnect Google Sheets</button>
   <button class="g-menu-btn signout" onclick="doGoogleSignOut()">⬆ Sign Out</button>
 </div>
 
 <!-- Sheets Setup Modal -->
 <div class="modal-overlay" id="sheets-setup-modal">
   <div class="modal" style="width:460px;max-width:95vw;">
-    <h3>🔗 Connect Google Sheets Database</h3>
+    <h3>🔗 Google Sheets Connection</h3>
     <div class="sheets-setup-body">
-      <div class="sheets-steps">
-        <div class="s-step"><div class="s-step-num">1</div><div class="s-step-txt">Open <strong>Google Sheets</strong> → create a spreadsheet named <code>GreekToGo POS Database</code> with tabs: <code>Inventory</code>, <code>SalesLog</code>, <code>ShiftLog</code></div></div>
-        <div class="s-step"><div class="s-step-num">2</div><div class="s-step-txt">In your Sheet go to <strong>Extensions → Apps Script</strong>, paste the <code>GreekToGo_AppScript.js</code> code, and click Save.</div></div>
-        <div class="s-step"><div class="s-step-num">3</div><div class="s-step-txt">Click <strong>Deploy → New Deployment → Web App</strong>. Set <em>Execute as: Me</em> and <em>Who has access: Anyone</em>. Copy the URL.</div></div>
-        <div class="s-step"><div class="s-step-num">4</div><div class="s-step-txt">Paste the deployment URL below and click Connect.</div></div>
+      <div style="background:var(--blue-ghost);border:1.5px solid var(--blue-pale);border-radius:12px;padding:13px 14px;margin-bottom:14px;font-size:12px;line-height:1.55;color:var(--blue-mid);">
+        <strong style="color:var(--blue-deep)">Endpoint locked in this POS.</strong><br>
+        No URL entry or setup is required on this or any other device.
       </div>
-      <input class="sheets-url-input" type="text" id="sheets-url-field" placeholder="https://script.google.com/macros/s/…/exec">
+      <input class="sheets-url-input" type="text" id="sheets-url-field" readonly aria-label="Hardcoded Google Apps Script URL">
       <div class="sheets-status-row" id="sheets-conn-status"></div>
     </div>
     <div class="modal-actions">
       <button class="m-cancel" onclick="closeModal('sheets-setup-modal')">Cancel</button>
-      <button class="sheets-connect-btn" onclick="connectSheets()">Connect & Sync 🔗</button>
+      <button class="sheets-connect-btn" onclick="connectSheets()">Test & Sync 🔄</button>
     </div>
   </div>
 </div>
@@ -732,6 +894,7 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
     <button class="nav-btn grab-nav"    onclick="showTab('grab',this)">🟢 GrabFood</button>
     <button class="nav-btn"             onclick="showTab('cashier',this)">👤 Cashier</button>
     <button class="nav-btn"             onclick="showTab('reports',this)">📊 Reports</button>
+    <button class="nav-btn"             onclick="showTab('analytics',this)">📈 Analytics</button>
     <button class="nav-btn"             onclick="showTab('kitchen',this)">🍳 Kitchen</button>
   </nav>
   <div class="header-right">
@@ -765,9 +928,10 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
       <div class="loading-grid"><div class="spinner"></div><p>Loading menu…</p></div>
     </div>
   </div>
-  <div class="order-panel">
+  <div class="order-panel" id="current-order-panel">
     <div class="order-header">
-      <div><div class="order-title">Current Order</div><div class="order-num" id="order-num">Order #0001</div></div>
+      <button type="button" class="mobile-menu-btn" onclick="toggleMobileOrder(false)" aria-label="Return to the menu">← Menu</button>
+      <div class="order-heading"><div class="order-title">Current Order</div><div class="order-num" id="order-num">Order #0001</div></div>
       <button id="held-orders-btn" onclick="showHeldOrders()" style="display:none;font-size:10px;background:#E8F0FE;color:var(--blue-accent);border:none;border-radius:8px;padding:3px 8px;cursor:pointer;font-weight:700;font-family:Nunito,sans-serif;">⏸ <span id="held-count">0</span> Held</button>
       <span style="font-size:20px">🛒</span>
     </div>
@@ -780,7 +944,7 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
 
       <div class="sum-row total-row"><span>TOTAL</span><span id="ttl">₱0.00</span></div>
       <!-- Table # + Customer -->
-      <div style="display:grid;grid-template-columns:120px 1fr;gap:6px;margin-bottom:6px;">
+      <div class="order-meta-grid" style="display:grid;grid-template-columns:120px 1fr;gap:6px;margin-bottom:6px;">
         <select id="table-num" style="border:1.5px solid var(--blue-pale);border-radius:10px;padding:8px 10px;font-family:Nunito,sans-serif;font-size:13px;color:var(--blue-deep);background:#fff;">
           <option value="">Table #</option>
           <option>Table 1</option><option>Table 2</option><option>Table 3</option>
@@ -832,7 +996,7 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
           <div style="font-size:10px;color:var(--gray-soft);text-align:center;margin-bottom:6px;" id="srp-summary">Set counts then tap Apply</div>
           <div style="display:flex;gap:6px;">
             <button class="disc-apply" style="flex:1" onclick="applySrpDisc()">Apply Discount</button>
-            <button class="disc-remove" id="dremove" onclick="removeDisc()">✕</button>
+            <button class="disc-remove" id="dremove-srp" onclick="removeDisc()">✕</button>
           </div>
         </div>
       </div>
@@ -854,6 +1018,10 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
       <button class="clear-btn" onclick="clearOrder()">🗑 Clear Order</button>
     </div>
   </div>
+  <button type="button" class="mobile-order-dock" id="mobile-order-dock" onclick="toggleMobileOrder(true)" aria-label="View current order" aria-controls="current-order-panel" aria-expanded="false">
+    <span class="mobile-order-dock-main"><span class="cart-icon">🛒</span>View Order</span>
+    <span class="mobile-cart-summary" id="mobile-cart-summary" aria-live="polite">0 items · ₱0.00</span>
+  </button>
 </div>
 <!-- ══════════ REPORTS VIEW ══════════ -->
 <div id="reports-view" class="tab-view" style="flex-direction:column;padding:22px;gap:18px;overflow-y:auto;min-height:calc(100vh - 64px);">
@@ -888,6 +1056,55 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
     <div style="font-weight:800;font-size:14px;color:var(--blue-deep);margin-bottom:12px;">📋 Today's Orders</div>
     <div id="rpt-orders" style="overflow-x:auto;"></div>
   </div>
+</div>
+
+<!-- ══════════ ANALYTICS VIEW ══════════ -->
+<div id="analytics-view" class="tab-view">
+  <div class="analytics-head">
+    <div>
+      <h2>📈 POS Analytics</h2>
+      <div class="analytics-sub">Revenue, order behavior and product performance across completed POS and GrabFood orders</div>
+    </div>
+    <div class="analytics-tools">
+      <select id="analytics-range" class="analytics-select" onchange="renderAnalytics()" aria-label="Analytics period">
+        <option value="today">Today</option>
+        <option value="7">Last 7 Days</option>
+        <option value="30">Last 30 Days</option>
+        <option value="all">All Recorded Sales</option>
+      </select>
+      <button class="add-btn" style="background:var(--blue-deep)" onclick="refreshAnalytics()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <div class="analytics-kpis" id="analytics-kpis"></div>
+
+  <div class="analytics-grid">
+    <section class="analytics-card wide">
+      <div class="analytics-card-title"><span>Revenue Trend</span><small id="analytics-trend-total">₱0.00 total</small></div>
+      <div class="analytics-chart-scroll"><div class="analytics-bars" id="analytics-trend"></div></div>
+    </section>
+
+    <section class="analytics-card narrow">
+      <div class="analytics-card-title"><span>Payment Mix</span><small>by revenue</small></div>
+      <div class="analytics-list" id="analytics-payments"></div>
+    </section>
+
+    <section class="analytics-card half">
+      <div class="analytics-card-title"><span>Category Performance</span><small>item revenue</small></div>
+      <div class="analytics-list" id="analytics-categories"></div>
+    </section>
+
+    <section class="analytics-card half">
+      <div class="analytics-card-title"><span>Top Selling Items</span><small>ranked by quantity</small></div>
+      <div class="analytics-table-wrap" id="analytics-items"></div>
+    </section>
+  </div>
+
+  <section class="analytics-card">
+    <div class="analytics-card-title"><span>Business Highlights</span><small>selected period</small></div>
+    <div class="analytics-insights" id="analytics-insights"></div>
+  </section>
+  <div class="analytics-source" id="analytics-source">Analytics ready</div>
 </div>
 
 <!-- PRINTER SETTINGS MODAL -->
@@ -1379,8 +1596,8 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
 /* ═══════════════════ CONFIG ═══════════════════ */
 // ── Google Sheets URL — hardcoded, works on every browser/device ──
 // ── HARDCODED — never needs localStorage or manual setup ──────────────────
-const SHEETS_URL_PERMANENT = 'https://script.google.com/macros/s/AKfycbxI74ANQbulTjXljEvp8xBGLu4Rtxv4Lcspho8P58XK763ABmW8OCDOp8vfZJBcmTYobA/exec';
-let SHEETS_URL = SHEETS_URL_PERMANENT;
+const SHEETS_URL_PERMANENT = 'https://script.google.com/macros/s/AKfycbz7-oe_VKlkbQ16RVt240fz374eB5zE0f2Uh91VLH-rEVISfW2El7IS_1_kWNWEeM5f6w/exec';
+const SHEETS_URL = SHEETS_URL_PERMANENT;
 
 // ── Printer Configuration ─────────────────────────────────────────────
 var _printerConfig = (function(){
@@ -1507,17 +1724,45 @@ function setNow(id){
 }
 
 /* ═══════════════════ TAB NAV ═══════════════════ */
+function toggleMobileOrder(open){
+  var view=document.getElementById('pos-view');
+  var dock=document.getElementById('mobile-order-dock');
+  if(!view) return;
+  view.classList.toggle('mobile-order-open',!!open);
+  if(dock) dock.setAttribute('aria-expanded',open?'true':'false');
+  if(open){
+    var panel=document.getElementById('current-order-panel');
+    if(panel) panel.scrollTop=0;
+  }
+}
+function updateMobileOrderDock(){
+  var el=document.getElementById('mobile-cart-summary');
+  if(!el) return;
+  var count=order.reduce(function(sum,item){ return sum+(parseInt(item.qty,10)||0); },0);
+  var total=getTotals().tot;
+  el.textContent=count+' item'+(count===1?'':'s')+' · ₱'+Number(total||0).toFixed(2);
+}
+window.addEventListener('resize',function(){
+  if(window.innerWidth>900) toggleMobileOrder(false);
+});
+
 function showTab(tab, btn) {
   document.querySelectorAll('.tab-view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById(tab+'-view').classList.add('active');
-  btn.classList.add('active');
-  if(tab==='pos')       { renderCatTabs(); renderMenu(); }
+  const view=document.getElementById(tab+'-view');
+  if(!view) return;
+  view.classList.add('active');
+  if(btn){
+    btn.classList.add('active');
+    if(btn.scrollIntoView) btn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+  }
+  if(tab==='pos')       { if(window.innerWidth<=900) toggleMobileOrder(false); renderCatTabs(); renderMenu(); }
   if(tab==='inventory')   renderInventory();
   if(tab==='pos-menu')    renderPosMenu();
   if(tab==='grab')      { renderDeliveryStats('grab'); renderDeliveryTable('grab'); setNow('grab-dt'); }
   if(tab==='cashier')   { renderCashierRoster(); renderShiftLog(); }
   if(tab==='reports')     renderReports();
+  if(tab==='analytics')   renderAnalytics();
   if(tab==='kitchen')   { refreshKitchen(); startKitchenAutoRefresh(); startKitchenClock(); }
   else                  { stopKitchenAutoRefresh(); stopKitchenClock(); }
 }
@@ -2167,7 +2412,7 @@ function renderOrder(){
   const el=document.getElementById('order-items');
   if(!order.length){
     el.innerHTML=`<div class="order-empty"><div class="ei">🍽️</div><p>No items yet.<br>Tap a menu item to add.</p></div>`;
-    updateTotals(0); return;
+    updateTotals(0); updateMobileOrderDock(); return;
   }
   el.innerHTML=order.map(o=>`
     <div class="order-line">
@@ -2180,6 +2425,7 @@ function renderOrder(){
       <div class="line-price">₱${(parseFloat(o.price)*o.qty).toFixed(2)}</div>
     </div>`).join("");
   updateTotals(order.reduce((s,o)=>s+parseFloat(o.price)*o.qty,0));
+  updateMobileOrderDock();
 }
 
 /* ═══════════════════ DISCOUNT ═══════════════════ */
@@ -2231,7 +2477,7 @@ function applySrpDisc(){
   disc.srCount = srpCounts.sr;
   disc.pwdCount = srpCounts.pwd;
   disc.applied = true;
-  document.getElementById('dremove').style.display='flex';
+  _setDiscountRemoveVisible(true);
   renderOrder(); showToast('✅ Senior/PWD discount applied!','success');
 }
 function applyDisc(){
@@ -2239,14 +2485,19 @@ function applyDisc(){
   const val=parseFloat(document.getElementById('dval').value)||0;
   if(val<=0){showToast('Enter discount value!','error');return;}
   disc.value=val; disc.applied=true;
-  document.getElementById('dremove').style.display='flex';
+  _setDiscountRemoveVisible(true);
   renderOrder(); showToast('✅ Discount applied!','success');
 }
 function removeDisc(){
   disc={type:disc.type,value:0,applied:false};
   document.getElementById('dval').value='';
-  document.getElementById('dremove').style.display='none';
+  _setDiscountRemoveVisible(false);
   renderOrder(); showToast('Discount removed','success');
+}
+function _setDiscountRemoveVisible(visible){
+  ['dremove','dremove-srp'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.style.display=visible?'flex':'none';
+  });
 }
 function calcDisc(sub){
   if(!disc.applied||disc.value<=0) return 0;
@@ -2283,11 +2534,12 @@ function clearOrder(){
   var tn=document.getElementById('table-num'); if(tn) tn.value='';
   var nn=document.getElementById('order-notes'); if(nn) nn.value='';
   var dv=document.getElementById('dval'); if(dv) dv.value='';
-  var dr=document.getElementById('dremove'); if(dr) dr.style.display='none';
+  _setDiscountRemoveVisible(false);
   var sc=document.getElementById('sr-count'); if(sc) sc.textContent='0';
   var pc=document.getElementById('pwd-count'); if(pc) pc.textContent='0';
   srpCounts={sr:0,pwd:0};
   renderOrder();
+  if(window.innerWidth<=900) toggleMobileOrder(false);
 }
 
 /* ═══════════════════ PAYMENT ═══════════════════ */
@@ -2340,15 +2592,18 @@ async function finalizePayment(method,gcashNum,gcashRef){
 function newOrder(){
   clearOrder();
   document.getElementById('order-num').textContent=`Order #${String(orderCount).padStart(4,'0')}`;
-// Auto-connect to Google Sheets on load (URL is hardcoded) else if(SHEETS_URL){
-  setDBStatus('loading','Connecting to Google Sheets…');
-  setTimeout(function(){
-    _call(SHEETS_URL,'ping',{}).then(function(r){
-      if(r){ _sheetsOnline=true; setDBStatus('connected','Google Sheets ✓'); _startHeartbeat(); }
-      else { setDBStatus('disconnected','Offline — login to retry'); }
-    });
-  }, 1200);
-setDBStatus('disconnected','No Sheet — Offline');
+  // Keep the hardcoded Google Sheets connection active between orders.
+  if(_sheetsOnline){
+    setDBStatus('connected','Google Sheets ✓');
+  } else {
+    setDBStatus('loading','Connecting to Google Sheets…');
+    setTimeout(function(){
+      _call(SHEETS_URL,'ping',{}).then(function(r){
+        if(r!==null){ _onReconnected(); }
+        else { setDBStatus('disconnected','Offline — retrying'); _scheduleReconnect(); }
+      });
+    }, 1200);
+  }
 }
 
 /* ═══════════════════ DELIVERY ORDERS ═══════════════════ */
@@ -3037,34 +3292,29 @@ document.addEventListener('click', function(e) {
 /* ═══════════════════ SHEETS SETUP ═══════════════════ */
 function openSheetsSetup() {
   closeUserMenu();
-  document.getElementById('sheets-url-field').value = SHEETS_URL || '';
+  document.getElementById('sheets-url-field').value = SHEETS_URL_PERMANENT;
   var s = document.getElementById('sheets-conn-status');
-  s.textContent = SHEETS_URL ? '✅ Currently connected' : '';
-  s.style.color = '#27AE60';
+  s.textContent = _sheetsOnline ? '✅ Connected to Google Sheets' : 'Ready to test the hardcoded connection.';
+  s.style.color = _sheetsOnline ? '#27AE60' : '#8DA4BF';
   openModal('sheets-setup-modal');
 }
 
 async function connectSheets() {
-  var url = document.getElementById('sheets-url-field').value.trim();
+  var url = SHEETS_URL_PERMANENT;
+  document.getElementById('sheets-url-field').value = url;
   var statusEl = document.getElementById('sheets-conn-status');
-  if (!url || !url.includes('script.google.com')) {
-    statusEl.textContent = '❌ Enter a valid Apps Script Web App URL.';
-    statusEl.style.color = '#E05050';
-    return;
-  }
   statusEl.textContent = '⏳ Testing connection…';
   statusEl.style.color = '#C9A84C';
   try {
-    var data = await _call(url, 'getInventory', {});
+    var data = await _call(url, 'ping', {});
 
-    if (data && data.items !== undefined) {
-      SHEETS_URL = url;
-      try{ localStorage.setItem('greektogo_sheets_url', url); }catch(e){}
+    if (data !== null) {
       statusEl.textContent = '✅ Connected successfully!';
       statusEl.style.color = '#27AE60';
       _onReconnected();
+      _syncDone = false;
       closeModal('sheets-setup-modal');
-      await loadInventoryFromSheets();
+      await _initialSync();
       showToast('Google Sheets connected!','success');
     } else {
       statusEl.textContent = '❌ Unexpected response shape. Check your Apps Script code matches the latest version.';
@@ -3237,8 +3487,6 @@ function loginPinBack() {
   if (saved && autoLogin) {
     try {
       googleUser = JSON.parse(saved);
-      var savedUrl = localStorage.getItem('gtg_sheets_url_' + googleUser.sub) || localStorage.getItem('greektogo_sheets_url') || '';
-      if (savedUrl) { SHEETS_URL = savedUrl; }
       onSignedIn();
       return;
     } catch(e) {}
@@ -3815,6 +4063,7 @@ function recallOrder(id){
   _updateHeldBtn();
   closeModal('held-modal');
   renderOrder();
+  if(window.innerWidth<=900) toggleMobileOrder(true);
   showToast('Order recalled!','success');
 }
 function discardHeld(id){
@@ -3922,6 +4171,170 @@ function renderReports(){
           +'<td><span style="background:var(--blue-ghost);border-radius:8px;padding:2px 7px;font-size:10px">'+s.method+'</span></td></tr>';
       }).join("")+'</table>'
     : '<div style="color:var(--gray-soft);text-align:center;padding:16px">No orders today.</div>';
+}
+
+/* ══════════════════════════════════════════════════════════
+   ANALYTICS — multi-period dashboard using completed POS data
+   ══════════════════════════════════════════════════════════ */
+function _analyticsNum(v){
+  var n=parseFloat(String(v===undefined||v===null?'0':v).replace(/[^0-9.-]/g,''));
+  return isFinite(n)?n:0;
+}
+function _analyticsMoney(v){
+  return '₱'+_analyticsNum(v).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function _analyticsEsc(v){
+  return String(v===undefined||v===null?'':v).replace(/[&<>"]/g,function(ch){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch];
+  });
+}
+function _analyticsDate(value, fallback){
+  var d=null;
+  if(value instanceof Date) d=value;
+  else if(typeof value==='number' || /^\d{12,}$/.test(String(value||''))) d=new Date(Number(value));
+  else if(value) d=new Date(value);
+  if(!d || isNaN(d.getTime())) d=fallback?new Date(fallback):null;
+  return d && !isNaN(d.getTime()) ? d : null;
+}
+function _analyticsRows(){
+  var rows=[];
+  (Array.isArray(salesLog)?salesLog:[]).forEach(function(s){
+    var when=_analyticsDate(s.id,s.time||s.date);
+    if(!when) return;
+    rows.push({
+      source:'POS',date:when,total:_analyticsNum(s.total),discount:_analyticsNum(s.discount),
+      method:s.method||'Other',items:Array.isArray(s.items)?s.items:[],orderNum:s.orderNum||''
+    });
+  });
+  (Array.isArray(grabOrders)?grabOrders:[]).filter(function(o){ return o.status==='completed'; }).forEach(function(o){
+    var when=_analyticsDate(o.dt,_analyticsDate(o.id,o.logged));
+    if(!when) return;
+    var names=String(o.items||'GrabFood Order').split(',').map(function(n){return n.trim();}).filter(Boolean);
+    if(!names.length) names=['GrabFood Order'];
+    var net=_analyticsNum(o.net || (_analyticsNum(o.amt)-_analyticsNum(o.comm)));
+    var perItem=names.length?net/names.length:net;
+    rows.push({source:'GrabFood',date:when,total:net,discount:_analyticsNum(o.comm),method:'GrabFood',orderNum:o.oid||'',
+      items:names.map(function(name){return {name:name,qty:1,price:perItem,cat:'GrabFood'};})});
+  });
+  return rows.sort(function(a,b){return a.date-b.date;});
+}
+function _analyticsFilteredRows(){
+  var range=(document.getElementById('analytics-range')||{value:'today'}).value;
+  var now=new Date();
+  var start=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  if(range==='7') start.setDate(start.getDate()-6);
+  else if(range==='30') start.setDate(start.getDate()-29);
+  else if(range==='all') start=null;
+  return _analyticsRows().filter(function(r){return (!start||r.date>=start)&&r.date<=now;});
+}
+function _analyticsBuckets(rows,range){
+  var now=new Date(),buckets=[],lookup={};
+  function keyDay(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  function add(key,label){var b={key:key,label:label,value:0};buckets.push(b);lookup[key]=b;}
+  if(range==='today'){
+    for(var h=0;h<24;h++) add('h'+h,(h===0?'12a':h<12?h+'a':h===12?'12p':(h-12)+'p'));
+    rows.forEach(function(r){lookup['h'+r.date.getHours()].value+=r.total;});
+  } else if(range==='7'||range==='30'){
+    var days=range==='7'?7:30;
+    for(var i=days-1;i>=0;i--){
+      var d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i);
+      add(keyDay(d),d.toLocaleDateString('en-PH',{month:'short',day:'numeric'}));
+    }
+    rows.forEach(function(r){var k=keyDay(r.date);if(lookup[k])lookup[k].value+=r.total;});
+  } else {
+    rows.forEach(function(r){
+      var k=r.date.getFullYear()+'-'+String(r.date.getMonth()+1).padStart(2,'0');
+      if(!lookup[k]) add(k,r.date.toLocaleDateString('en-PH',{month:'short',year:'2-digit'}));
+      lookup[k].value+=r.total;
+    });
+    if(!buckets.length) add(now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'),now.toLocaleDateString('en-PH',{month:'short',year:'2-digit'}));
+  }
+  return buckets;
+}
+function _analyticsList(elId,map,total,colors){
+  var el=document.getElementById(elId); if(!el) return;
+  var keys=Object.keys(map).sort(function(a,b){return map[b]-map[a];});
+  if(!keys.length){el.innerHTML='<div class="analytics-empty">No completed sales in this period.</div>';return;}
+  el.innerHTML=keys.map(function(k,i){
+    var pct=total>0?Math.round((map[k]/total)*100):0;
+    var color=(colors&&colors[i%colors.length])||'var(--blue-accent)';
+    return '<div><div class="analytics-list-head"><span class="analytics-list-name">'+_analyticsEsc(k)+'</span>'
+      +'<span class="analytics-list-value">'+_analyticsMoney(map[k])+' · '+pct+'%</span></div>'
+      +'<div class="analytics-progress"><div class="analytics-progress-fill" style="width:'+pct+'%;background:'+color+'"></div></div></div>';
+  }).join('');
+}
+function refreshAnalytics(){
+  renderAnalytics();
+  showToast('Analytics refreshed.','success');
+}
+function renderAnalytics(){
+  var range=(document.getElementById('analytics-range')||{value:'today'}).value;
+  var rows=_analyticsFilteredRows();
+  var revenue=rows.reduce(function(s,r){return s+r.total;},0);
+  var discounts=rows.reduce(function(s,r){return s+r.discount;},0);
+  var itemQty=0,itemMap={},catMap={},payMap={},hourMap={};
+  rows.forEach(function(r){
+    payMap[r.method||'Other']=(payMap[r.method||'Other']||0)+r.total;
+    var hour=r.date.getHours();
+    if(!hourMap[hour]) hourMap[hour]={orders:0,revenue:0};
+    hourMap[hour].orders++;hourMap[hour].revenue+=r.total;
+    (r.items||[]).forEach(function(it){
+      var qty=Math.max(0,_analyticsNum(it.qty)||1),price=_analyticsNum(it.price),name=it.name||'Unnamed Item',cat=it.cat||'Other';
+      var itemRevenue=price*qty;
+      itemQty+=qty;
+      if(!itemMap[name])itemMap[name]={qty:0,revenue:0};
+      itemMap[name].qty+=qty;itemMap[name].revenue+=itemRevenue;
+      catMap[cat]=(catMap[cat]||0)+itemRevenue;
+    });
+  });
+  var avg=rows.length?revenue/rows.length:0;
+  var kpis=[
+    {label:'Net Sales',value:_analyticsMoney(revenue),note:'Completed orders'},
+    {label:'Orders',value:rows.length.toLocaleString('en-PH'),note:'POS + GrabFood'},
+    {label:'Average Order',value:_analyticsMoney(avg),note:'Revenue per order'},
+    {label:'Items Sold',value:itemQty.toLocaleString('en-PH'),note:'Total quantity'},
+    {label:'Discounts / Fees',value:_analyticsMoney(discounts),note:'Recorded deductions'}
+  ];
+  var kpiEl=document.getElementById('analytics-kpis');
+  if(kpiEl)kpiEl.innerHTML=kpis.map(function(k){return '<div class="analytics-kpi"><div class="analytics-kpi-label">'+k.label+'</div><div class="analytics-kpi-value">'+k.value+'</div><div class="analytics-kpi-note">'+k.note+'</div></div>';}).join('');
+
+  var buckets=_analyticsBuckets(rows,range),maxValue=Math.max.apply(null,buckets.map(function(b){return b.value;}).concat([1]));
+  var trend=document.getElementById('analytics-trend');
+  if(trend)trend.innerHTML=buckets.map(function(b){
+    var height=b.value?Math.max(4,(b.value/maxValue)*100):0;
+    return '<div class="analytics-bar-col" title="'+_analyticsEsc(b.label)+': '+_analyticsMoney(b.value)+'">'
+      +'<div class="analytics-bar-value">'+(b.value?_analyticsMoney(b.value).replace('.00',''):'')+'</div>'
+      +'<div class="analytics-bar-track"><div class="analytics-bar-fill" style="height:'+height+'%"></div></div>'
+      +'<div class="analytics-bar-label">'+_analyticsEsc(b.label)+'</div></div>';
+  }).join('');
+  var trendTotal=document.getElementById('analytics-trend-total');if(trendTotal)trendTotal.textContent=_analyticsMoney(revenue)+' total';
+
+  _analyticsList('analytics-payments',payMap,revenue,['#2E7DD1','#27AE60','#00B14F','#C9A84C','#8E44AD']);
+  var catTotal=Object.keys(catMap).reduce(function(s,k){return s+catMap[k];},0);
+  _analyticsList('analytics-categories',catMap,catTotal,['#1B4F8A','#5BA4E6','#C9A84C','#27AE60','#8E44AD']);
+
+  var topItems=Object.keys(itemMap).sort(function(a,b){return itemMap[b].qty-itemMap[a].qty||itemMap[b].revenue-itemMap[a].revenue;}).slice(0,8);
+  var itemsEl=document.getElementById('analytics-items');
+  if(itemsEl)itemsEl.innerHTML=topItems.length?'<table class="analytics-table"><thead><tr><th>Item</th><th>Qty</th><th>Revenue</th></tr></thead><tbody>'
+    +topItems.map(function(n,i){return '<tr><td><span class="analytics-rank">'+(i+1)+'</span>'+_analyticsEsc(n)+'</td><td>'+itemMap[n].qty.toLocaleString('en-PH')+'</td><td>'+_analyticsMoney(itemMap[n].revenue)+'</td></tr>';}).join('')
+    +'</tbody></table>':'<div class="analytics-empty">No item sales in this period.</div>';
+
+  var topCat=Object.keys(catMap).sort(function(a,b){return catMap[b]-catMap[a];})[0]||'No data';
+  var topItem=topItems[0]||'No data';
+  var topPay=Object.keys(payMap).sort(function(a,b){return payMap[b]-payMap[a];})[0]||'No data';
+  var busyHour=Object.keys(hourMap).sort(function(a,b){return hourMap[b].orders-hourMap[a].orders||hourMap[b].revenue-hourMap[a].revenue;})[0];
+  var busyLabel='No data';
+  if(busyHour!==undefined){var hd=new Date();hd.setHours(Number(busyHour),0,0,0);busyLabel=hd.toLocaleTimeString('en-PH',{hour:'numeric'});}
+  var insights=[
+    {icon:'🏆',label:'Best Seller',value:topItem},
+    {icon:'📂',label:'Top Category',value:topCat},
+    {icon:'⏰',label:'Busiest Hour',value:busyLabel},
+    {icon:'💳',label:'Top Payment',value:topPay}
+  ];
+  var insEl=document.getElementById('analytics-insights');
+  if(insEl)insEl.innerHTML=insights.map(function(x){return '<div class="analytics-insight"><div class="analytics-insight-icon">'+x.icon+'</div><div class="analytics-insight-label">'+x.label+'</div><div class="analytics-insight-value" title="'+_analyticsEsc(x.value)+'">'+_analyticsEsc(x.value)+'</div></div>';}).join('');
+  var src=document.getElementById('analytics-source');
+  if(src)src.textContent='Last updated '+new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})+' · '+rows.length+' completed order'+(rows.length===1?'':'s');
 }
 
 /* ── EOD REPORT TO SHEETS ─────────────────────────────────── */
