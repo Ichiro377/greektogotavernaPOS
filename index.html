@@ -738,6 +738,7 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
     <button class="kitchen-bell" id="kitchen-bell" onclick="pingKitchenDisplay()" title="Ping kitchen display" aria-label="Ping kitchen display">🔔<span class="kitchen-bell-badge" id="kitchen-bell-badge">!</span></button>
     <button onclick="openPrinterSettings()" title="Printer Settings" style="background:none;border:none;cursor:pointer;font-size:18px;padding:2px 6px;color:#fff;opacity:.7">🖨️</button>
     <div id="sync-error-badge" onclick="showSyncErrors()" style="display:none;cursor:pointer;background:#E74C3C;color:#fff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800;margin-right:2px;">⚠️ <span id="sync-error-count">0</span> Error(s)</div>
+    <div id="sync-retry-status" style="display:none;color:#F5C16C;font-size:10px;font-weight:800;white-space:nowrap;"></div>
     <div class="db-status loading" id="db-status"><div class="db-dot"></div><span id="db-status-txt">Connecting…</span></div>
     <div class="cashier-badge" id="active-cashier">👤 No Cashier</div>
     <div class="clock" id="clock">--:--:--</div>
@@ -1439,27 +1440,11 @@ function _saveMenuLocally(){ try{ localStorage.setItem('gtg_menu_items', JSON.st
 // ── INVENTORY (stock tracking) — starts empty. You build this list
 // yourself via the Inventory tab. Backs up to Google Sheets, but Sheets
 // can only ever receive a copy from here — never push data back in.
-let stockInventory = (function(){
-  try {
-    var saved = localStorage.getItem('gtg_stock_inventory');
-    if (saved) {
-      var parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length) {
-        // Normalize on load — handles UPPERCASE, camelCase, and mixed formats
-        // Normalize on load — handles any field format
-        var normalized = [];
-        for(var i=0;i<parsed.length;i++){
-          var m = _mapInvItem(parsed[i],i);
-          if(m.itemCode||m.description||m.category) normalized.push(m);
-        }
-        try{ localStorage.setItem('gtg_stock_inventory', JSON.stringify(normalized)); }catch(e){}
-        return normalized.length ? normalized : parsed;
-      }
-    }
-  } catch(e) {}
-  return [];
-})();
-function _saveStockLocally(){ try{ localStorage.setItem('gtg_stock_inventory', JSON.stringify(stockInventory)); }catch(e){} }
+// ── INVENTORY — Google Sheets is the only source of truth.
+let stockInventory = [];
+try{ localStorage.removeItem('gtg_stock_inventory'); }catch(e){}
+// Kept as a compatibility no-op so older callers cannot persist inventory locally.
+function _saveStockLocally(){ return false; }
 function _mapInvItem(raw, idx){
   // Handles UPPERCASE, camelCase, or any mixed field names from Google Sheets
   function get(){
@@ -1723,29 +1708,35 @@ async function syncInventory(){
   await pushInventoryToSheets();
 }
 
-async function pushInventoryToSheets(silent){
+async function pushInventoryToSheets(silent, inventoryOverride){
   if(!SHEETS_URL){
-    if(!silent) showToast('⚠️ No Sheet connected — saved locally only.','warning');
-    return;
+    if(!silent) showToast('⚠️ Google Sheets is not configured. Nothing was saved.','error');
+    return false;
   }
-  var validItems = stockInventory.filter(function(i){
+  var source = Array.isArray(inventoryOverride) ? inventoryOverride : stockInventory;
+  var validItems = source.filter(function(i){
     var m = _mapInvItem(i,0);
     return m.itemCode || m.description || m.category;
   });
-  if(!validItems.length){ return; }
+  if(!validItems.length){
+    if(!silent) showToast('⚠️ Add at least one valid inventory item.','error');
+    return false;
+  }
   var rows = validItems.map(function(i){
     var m = _mapInvItem(i,0);
     return { itemCode:m.itemCode, description:m.description, category:m.category,
              price:m.price, begBal:m.begBal, endingStock:m.endingStock,
              uom:m.uom, supplier:m.supplier };
   });
-  if(!silent) showToast('⬆ Syncing '+rows.length+' items to Sheet…','info');
+  if(!silent) showToast('⬆ Saving '+rows.length+' items to Google Sheets…','info');
   var res = await sheetsCall('saveInventory',{items:rows});
   if(res && res.ok){
-    showToast('✅ Inventory saved to Google Sheets! ('+rows.length+' items)','success');
-  } else {
-    _addSyncError('Inventory','saveInventory','Failed to save '+rows.length+' inventory items to Sheet',{items:rows});
+    if(!silent) showToast('✅ Inventory saved to Google Sheets! ('+rows.length+' items)','success');
+    return true;
   }
+  _addSyncError('Inventory','saveInventory','Google Sheets rejected or did not receive the inventory write',{items:rows,response:res});
+  if(!silent) showToast('❌ Inventory was not saved. Google Sheets is unavailable.','error');
+  return false;
 }
 
 // Remove blank + duplicate rows from Google Sheets Inventory tab
@@ -2594,41 +2585,42 @@ function _refreshCatSuggestions(){
 }
 
 async function saveItem(){
-  const itemCode    = document.getElementById('m-code').value.trim();
-  const description = document.getElementById('m-name').value.trim();
-  const category    = document.getElementById('m-cat').value.trim();
-  const price       = parseFloat(document.getElementById('m-price').value)||0;
-  const unit        = document.getElementById('m-unit').value.trim();
-  const uom         = document.getElementById('m-uom').value.trim();
-  const begBal      = parseInt(document.getElementById('m-begbal').value)||0;
-  const endingStock = parseInt(document.getElementById('m-ending').value)||0;
-  const supplier    = document.getElementById('m-supplier').value.trim();
+  const itemCode=document.getElementById('m-code').value.trim();
+  const description=document.getElementById('m-name').value.trim();
+  const category=document.getElementById('m-cat').value.trim();
+  const price=parseFloat(document.getElementById('m-price').value)||0;
+  const unit=document.getElementById('m-unit').value.trim();
+  const uom=document.getElementById('m-uom').value.trim();
+  const begBal=parseInt(document.getElementById('m-begbal').value)||0;
+  const endingStock=parseInt(document.getElementById('m-ending').value)||0;
+  const supplier=document.getElementById('m-supplier').value.trim();
   if(!description){showToast('Enter item description.','error');return;}
-  const record = {itemCode,description,category,price,unit,uom,begBal,endingStock,supplier};
+  const record={itemCode,description,category,price,unit,uom,begBal,endingStock,supplier};
+  const candidate=stockInventory.map(function(i){return {...i};});
   if(editingId){
-    const idx = stockInventory.findIndex(i=>i.id===editingId);
-    if(idx>-1) stockInventory[idx] = {...stockInventory[idx], ...record};
-    showToast('Item updated!','success');
+    const idx=candidate.findIndex(i=>i.id===editingId);
+    if(idx>-1) candidate[idx]={...candidate[idx],...record};
   } else {
-    const newId = stockInventory.length ? Math.max(...stockInventory.map(i=>i.id))+1 : 1;
-    stockInventory.push({id:newId, ...record});
-    showToast('Item added!','success');
+    const newId=candidate.length?Math.max(...candidate.map(i=>i.id||0))+1:1;
+    candidate.push({id:newId,...record});
   }
+  const saved=await pushInventoryToSheets(false,candidate);
+  if(!saved) return;
+  stockInventory=candidate;
   closeModal('item-modal');
-  _saveStockLocally();
   renderInventory();
-  // Sync to Sheets always (shows error badge if fails)
-  pushInventoryToSheets(false);
+  showToast(editingId?'Item updated.':'Item added.','success');
 }
-function deleteItem(id){
-  if(!confirm('Delete this item?')) return;
-  stockInventory=stockInventory.filter(i=>i.id!==id);
-  _saveStockLocally();
+async function deleteItem(id){
+  if(!confirm('Remove this item from Google Sheets?')) return;
+  const candidate=stockInventory.filter(function(i){return i.id!==id;});
+  if(!candidate.length){showToast('At least one inventory item must remain for a Sheets save.','error');return;}
+  const saved=await pushInventoryToSheets(false,candidate);
+  if(!saved) return;
+  stockInventory=candidate;
   renderInventory();
-  showToast('Item deleted. Syncing to Sheet…','success');
-  pushInventoryToSheets();
+  showToast('Item deleted from Google Sheets.','success');
 }
-
 /* ═══════════════════ CASHIER PIN MANAGER ═══════════════════ */
 const C_COLORS=['av-b','av-t','av-a','av-p','av-r'];
 function cInitials(n){return n.split(' ').map(w=>w[0]).join("").slice(0,2).toUpperCase();}
@@ -4156,6 +4148,9 @@ var _syncErrors = (function(){
   try{ var s=localStorage.getItem('gtg_sync_errors'); if(s) return JSON.parse(s)||[]; }catch(e){}
   return [];
 })();
+var _syncRetryTimer=null;
+var _syncRetryAttempt=0;
+var _syncRetryRunning=false;
 
 function _saveSyncErrors(){ try{ localStorage.setItem('gtg_sync_errors',JSON.stringify(_syncErrors.slice(-50))); }catch(e){} }
 
@@ -4172,14 +4167,50 @@ function _addSyncError(tab, action, detail, data){
   _syncErrors.push(err);
   _saveSyncErrors();
   _updateSyncBadge();
-  showToast('⚠️ '+tab+': '+detail+' — tap red badge to retry','warning');
+  _scheduleSyncRetry();
+  showToast('⚠️ '+tab+': '+detail+' — retrying automatically','warning');
 }
 
 function _updateSyncBadge(){
   var badge = document.getElementById('sync-error-badge');
   var count = document.getElementById('sync-error-count');
+  var status = document.getElementById('sync-retry-status');
   if(badge){ badge.style.display = _syncErrors.length ? 'inline-flex' : 'none'; }
   if(count){ count.textContent = _syncErrors.length; }
+  if(status){
+    status.style.display = _syncErrors.length ? 'inline-block' : 'none';
+    status.textContent = _syncErrors.length ? (_syncRetryRunning ? 'Retrying…' : 'Retry pending') : '';
+  }
+}
+function _scheduleSyncRetry(){
+  if(!_syncErrors.length || _syncRetryTimer || _syncRetryRunning) return;
+  var delay=Math.min(60000,5000*Math.pow(2,Math.min(_syncRetryAttempt,4)));
+  var status=document.getElementById('sync-retry-status');
+  if(status){ status.style.display='inline-block'; status.textContent='Retry in '+Math.ceil(delay/1000)+'s'; }
+  _syncRetryTimer=setTimeout(function(){ _syncRetryTimer=null; _autoRetrySyncErrors(); },delay);
+}
+async function _autoRetrySyncErrors(){
+  if(_syncRetryRunning || !_syncErrors.length) return;
+  _syncRetryRunning=true; _updateSyncBadge();
+  var remaining=[];
+  for(var i=0;i<_syncErrors.length;i++){
+    var err=_syncErrors[i]; err.retries=(err.retries||0)+1;
+    try{
+      var res=await sheetsCall(err.action,err.data||{});
+      if(!(res && (res.ok || res.items))) remaining.push(err);
+    }catch(e){ remaining.push(err); }
+  }
+  _syncErrors=remaining; _saveSyncErrors();
+  _syncRetryRunning=false;
+  if(_syncErrors.length){
+    _syncRetryAttempt++;
+    _updateSyncBadge();
+    showToast('⚠️ Sync still unavailable. Will retry again.','warning');
+    _scheduleSyncRetry();
+  }else{
+    _syncRetryAttempt=0; _updateSyncBadge();
+    showToast('✅ Google Sheets sync recovered.','success');
+  }
 }
 
 function showSyncErrors(){
@@ -4228,6 +4259,7 @@ async function retrySyncError(id){
   } catch(e){ ok=false; }
   if(ok){
     _syncErrors = _syncErrors.filter(function(e){ return e.id!==id; });
+    _syncRetryAttempt=0;
     _saveSyncErrors(); _updateSyncBadge();
     showToast('✅ '+err.tab+' synced successfully!','success');
     showSyncErrors();
