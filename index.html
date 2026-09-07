@@ -2978,6 +2978,10 @@ function continueOffline() {
 }
 
 function doLogout() {
+  // Confirm before ending the current POS session.
+  if (!window.confirm('Are you sure you want to logout?\n\nYour current POS session will be ended.')) {
+    return;
+  }
   _syncDone = false;  // allow re-sync on next login
   // Clear local session
   localStorage.removeItem('gtg_user');
@@ -3004,6 +3008,10 @@ function doLogout() {
 }
 
 function doGoogleSignOut() {
+  // Confirm before signing out from the user menu.
+  if (!window.confirm('Are you sure you want to sign out?\n\nYou will be returned to the login screen.')) {
+    return;
+  }
   googleUser = null;
   localStorage.removeItem('gtg_google_user');
   localStorage.removeItem('gtg_auto_login');
