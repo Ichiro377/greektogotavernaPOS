@@ -661,6 +661,50 @@ body{font-family:'Nunito',sans-serif;background:var(--blue-ghost);color:var(--bl
 }
 
 /* ══════════════════════════════════════════════════
+   SETTINGS TAB
+══════════════════════════════════════════════════ */
+#settings-view{flex-direction:column;padding:clamp(14px,2vw,28px);gap:20px;overflow-y:auto;min-height:calc(100dvh - 64px);}
+.stg-head{display:flex;align-items:center;gap:10px;}
+.stg-head h2{font-family:'Cinzel',serif;font-size:22px;color:var(--blue-deep);}
+.stg-head p{font-size:12px;color:var(--gray-soft);margin-top:2px;}
+.stg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px;align-items:start;}
+.stg-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-card);overflow:hidden;}
+.stg-card-header{padding:14px 20px 12px;background:var(--blue-deep);display:flex;align-items:center;gap:9px;}
+.stg-card-header h3{font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:#fff;margin:0;}
+.stg-card-header span{font-size:18px;}
+.stg-card-body{padding:18px 20px 20px;display:flex;flex-direction:column;gap:14px;}
+.stg-section-lbl{font-size:10px;font-weight:800;color:var(--gray-soft);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;}
+.stg-field{display:flex;flex-direction:column;gap:5px;}
+.stg-field label{font-size:11px;font-weight:700;color:var(--gray-soft);text-transform:uppercase;letter-spacing:.4px;}
+.stg-field input,.stg-field select{width:100%;border:1.5px solid var(--blue-pale);border-radius:10px;padding:9px 12px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;color:var(--blue-deep);background:var(--blue-ghost);outline:none;transition:border-color .2s;}
+.stg-field input:focus,.stg-field select:focus{border-color:var(--blue-accent);background:#fff;}
+.stg-field .hint{font-size:10px;color:var(--gray-soft);margin-top:2px;line-height:1.4;}
+.stg-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.stg-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--blue-ghost);border-radius:10px;gap:10px;}
+.stg-toggle-row label{font-size:12px;font-weight:700;color:var(--blue-deep);cursor:pointer;}
+.stg-toggle-row .hint{font-size:10px;color:var(--gray-soft);margin-top:2px;}
+.stg-toggle-row input[type="checkbox"]{width:18px;height:18px;cursor:pointer;accent-color:var(--blue-accent);flex-shrink:0;}
+.stg-type-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.stg-type-btn{padding:10px;border-radius:9px;border:2px solid var(--blue-pale);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--gray-soft);transition:all .15s;text-align:center;}
+.stg-type-btn.active{border-color:var(--blue-accent);background:var(--blue-ghost);color:var(--blue-accent);}
+.stg-save-btn{width:100%;padding:11px;background:var(--blue-accent);color:#fff;border:none;border-radius:10px;font-family:'Cinzel',serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;margin-top:4px;}
+.stg-save-btn:hover{background:var(--blue-mid);transform:translateY(-1px);}
+.stg-save-btn:active{transform:scale(.98);}
+.stg-test-btn{padding:9px 14px;background:var(--blue-deep);color:#fff;border:none;border-radius:9px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s;}
+.stg-test-btn:hover{background:var(--blue-mid);}
+.stg-input-row{display:flex;gap:8px;align-items:stretch;}
+.stg-input-row input{flex:1;}
+.rawbt-preview{background:#1a1a2e;border-radius:10px;padding:12px 14px;font-family:'Courier New',monospace;font-size:11px;color:#a8d8ea;line-height:1.7;white-space:pre;}
+.stg-pill-row{display:flex;gap:6px;flex-wrap:wrap;}
+.stg-pill{padding:5px 13px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid var(--blue-pale);background:#fff;color:var(--gray-soft);transition:all .15s;white-space:nowrap;}
+.stg-pill.active{background:var(--blue-accent);color:#fff;border-color:var(--blue-accent);}
+.stg-divider{border:none;border-top:1px solid var(--blue-pale);margin:2px 0;}
+@media(max-width:768px){
+  .stg-grid{grid-template-columns:1fr;}
+  .stg-row{grid-template-columns:1fr;}
+}
+
+/* ══════════════════════════════════════════════════
    ANALYTICS
 ══════════════════════════════════════════════════ */
 #analytics-view{flex-direction:column;padding:clamp(14px,2vw,24px);gap:16px;overflow-y:auto;min-height:calc(100dvh - 64px);}
@@ -896,6 +940,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
     <button class="nav-btn"             onclick="showTab('reports',this)">📊 Reports</button>
     <button class="nav-btn"             onclick="showTab('analytics',this)">📈 Analytics</button>
     <button class="nav-btn"             onclick="showTab('kitchen',this)">🍳 Kitchen</button>
+    <button class="nav-btn"             onclick="showTab('settings',this)">⚙️ Settings</button>
   </nav>
   <div class="header-right">
     <button class="kitchen-bell" id="kitchen-bell" onclick="pingKitchenDisplay()" title="Ping kitchen display" aria-label="Ping kitchen display">🔔<span class="kitchen-bell-badge" id="kitchen-bell-badge">!</span></button>
@@ -1186,6 +1231,177 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   </div>
 </div>
 
+
+<!-- ══════════ SETTINGS TAB ══════════ -->
+<div id="settings-view" class="tab-view">
+  <div class="stg-head">
+    <div>
+      <h2>⚙️ Settings</h2>
+      <p>Printer configuration, RAWBT options, and app preferences. Saved to this device.</p>
+    </div>
+  </div>
+
+  <div class="stg-grid">
+
+    <!-- ── RECEIPT PRINTER ── -->
+    <div class="stg-card">
+      <div class="stg-card-header">
+        <span>🧾</span>
+        <h3>Receipt Printer (XP-N160II)</h3>
+      </div>
+      <div class="stg-card-body">
+        <div class="stg-field">
+          <label>Printer IP Address</label>
+          <div class="stg-input-row">
+            <input type="text" id="stg-receipt-ip" placeholder="e.g. 192.168.1.105">
+            <button class="stg-test-btn" onclick="stgTestPrinter('receipt')">Test</button>
+          </div>
+          <div class="hint">From printer self-test page. Leave blank to use browser print dialog.</div>
+        </div>
+        <div class="stg-field">
+          <label>Paper Width</label>
+          <select id="stg-receipt-width">
+            <option value="80">80mm (standard)</option>
+            <option value="58">58mm (narrow)</option>
+            <option value="76">76mm</option>
+          </select>
+        </div>
+        <button class="stg-save-btn" onclick="stgSaveReceipt()">💾 Save Receipt Settings</button>
+      </div>
+    </div>
+
+    <!-- ── KITCHEN PRINTER ── -->
+    <div class="stg-card">
+      <div class="stg-card-header">
+        <span>🍳</span>
+        <h3>Kitchen Printer (XP-58IID)</h3>
+      </div>
+      <div class="stg-card-body">
+        <div class="stg-field">
+          <label>Print Method</label>
+          <div class="stg-type-btns" id="stg-ktype-btns">
+            <button class="stg-type-btn" id="stg-kt-rawbt" onclick="stgSetKtype('rawbt')">📱 RawBT (Android)</button>
+            <button class="stg-type-btn" id="stg-kt-wifi"  onclick="stgSetKtype('wifi')">📶 WiFi (IP)</button>
+          </div>
+        </div>
+        <div class="stg-field" id="stg-kitchen-ip-wrap" style="display:none">
+          <label>Kitchen Printer IP</label>
+          <div class="stg-input-row">
+            <input type="text" id="stg-kitchen-ip" placeholder="e.g. 192.168.1.106">
+            <button class="stg-test-btn" onclick="stgTestPrinter('kitchen')">Test</button>
+          </div>
+        </div>
+        <div class="stg-toggle-row">
+          <div>
+            <label for="stg-auto-kitchen">Auto-print kitchen ticket</label>
+            <div class="hint">Print automatically when order is sent to kitchen</div>
+          </div>
+          <input type="checkbox" id="stg-auto-kitchen">
+        </div>
+        <button class="stg-save-btn" onclick="stgSaveKitchen()">💾 Save Kitchen Settings</button>
+      </div>
+    </div>
+
+    <!-- ── RAWBT SETTINGS ── -->
+    <div class="stg-card">
+      <div class="stg-card-header">
+        <span>📱</span>
+        <h3>RAWBT Advanced Settings</h3>
+      </div>
+      <div class="stg-card-body">
+        <div class="stg-row">
+          <div class="stg-field">
+            <label>Paper Width</label>
+            <select id="stg-rawbt-width">
+              <option value="80">80mm</option>
+              <option value="58">58mm</option>
+              <option value="76">76mm</option>
+            </select>
+          </div>
+          <div class="stg-field">
+            <label>Copies</label>
+            <input type="number" id="stg-rawbt-copies" min="1" max="9" value="1" style="width:100%">
+          </div>
+        </div>
+        <div class="stg-field">
+          <label>Cut Mode</label>
+          <div class="stg-pill-row" id="stg-cut-pills">
+            <button class="stg-pill active" onclick="stgSetPill('cut','full',this)">Full cut</button>
+            <button class="stg-pill" onclick="stgSetPill('cut','partial',this)">Partial cut</button>
+            <button class="stg-pill" onclick="stgSetPill('cut','none',this)">No cut</button>
+          </div>
+        </div>
+        <div class="stg-field">
+          <label>Print Density</label>
+          <div class="stg-pill-row" id="stg-density-pills">
+            <button class="stg-pill active" onclick="stgSetPill('density','0',this)">Default</button>
+            <button class="stg-pill" onclick="stgSetPill('density','1',this)">Light</button>
+            <button class="stg-pill" onclick="stgSetPill('density','2',this)">Medium</button>
+            <button class="stg-pill" onclick="stgSetPill('density','3',this)">Dark</button>
+          </div>
+        </div>
+        <div class="stg-toggle-row">
+          <div>
+            <label for="stg-rawbt-rotate">Rotate 180°</label>
+            <div class="hint">Flip print output upside-down</div>
+          </div>
+          <input type="checkbox" id="stg-rawbt-rotate">
+        </div>
+        <div class="stg-toggle-row">
+          <div>
+            <label for="stg-rawbt-beep">Beep after print</label>
+            <div class="hint">Audible confirmation when ticket prints</div>
+          </div>
+          <input type="checkbox" id="stg-rawbt-beep">
+        </div>
+        <hr class="stg-divider">
+        <div class="stg-field">
+          <label>URL Preview</label>
+          <div class="rawbt-preview" id="stg-rawbt-preview">rawbt:?width=80&cut=full</div>
+          <div class="hint">Parameters embedded in every RawBT print call</div>
+        </div>
+        <button class="stg-save-btn" onclick="stgSaveRawbt()">💾 Save RAWBT Settings</button>
+      </div>
+    </div>
+
+    <!-- ── APP PREFERENCES ── -->
+    <div class="stg-card">
+      <div class="stg-card-header">
+        <span>🏪</span>
+        <h3>App Preferences</h3>
+      </div>
+      <div class="stg-card-body">
+        <div class="stg-field">
+          <label>Store Name (on receipts)</label>
+          <input type="text" id="stg-store-name" placeholder="GREEK TO GO TAVERNA" maxlength="40">
+        </div>
+        <div class="stg-field">
+          <label>Store Tagline</label>
+          <input type="text" id="stg-store-tagline" placeholder="Authentic Greek Cuisine" maxlength="50">
+        </div>
+        <div class="stg-field">
+          <label>Receipt Footer Message</label>
+          <input type="text" id="stg-receipt-footer" placeholder="Thank you! Come again!" maxlength="60">
+        </div>
+        <div class="stg-toggle-row">
+          <div>
+            <label for="stg-show-cashier">Show cashier name on receipt</label>
+          </div>
+          <input type="checkbox" id="stg-show-cashier" checked>
+        </div>
+        <div class="stg-toggle-row">
+          <div>
+            <label for="stg-show-table">Show table number on receipt</label>
+          </div>
+          <input type="checkbox" id="stg-show-table" checked>
+        </div>
+        <button class="stg-save-btn" onclick="stgSavePrefs()">💾 Save Preferences</button>
+      </div>
+    </div>
+
+  </div><!-- /stg-grid -->
+</div>
+<!-- ══════════ END SETTINGS TAB ══════════ -->
 
 <!-- ══════════ KITCHEN DISPLAY ══════════ -->
 <div id="kitchen-view" class="tab-view" style="flex-direction:column;background:#1a1a2e;min-height:calc(100vh - 64px);padding:16px;gap:14px;overflow-y:auto;">
@@ -4971,6 +5187,203 @@ function printKitchenTicket(kitchenOrder){
   }
 }
 /* ═══════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════
+   SETTINGS TAB — JS
+══════════════════════════════════════════════════ */
+
+var _rawbtSettings = (function(){
+  try{ return JSON.parse(localStorage.getItem('gtg_rawbt_settings')||'{}'); }catch(e){ return {}; }
+})();
+function _saveRawbtSettings(){ try{ localStorage.setItem('gtg_rawbt_settings', JSON.stringify(_rawbtSettings)); }catch(e){} }
+
+var _appPrefs = (function(){
+  try{ return JSON.parse(localStorage.getItem('gtg_app_prefs')||'{}'); }catch(e){ return {}; }
+})();
+function _saveAppPrefs(){ try{ localStorage.setItem('gtg_app_prefs', JSON.stringify(_appPrefs)); }catch(e){} }
+
+var _stgCut     = _rawbtSettings.cut     || 'full';
+var _stgDensity = _rawbtSettings.density !== undefined ? String(_rawbtSettings.density) : '0';
+
+function initSettingsTab(){
+  // Receipt
+  var ri = document.getElementById('stg-receipt-ip');
+  if(ri) ri.value = RECEIPT_PRINTER_IP || '';
+  var rw = document.getElementById('stg-receipt-width');
+  if(rw) rw.value = _printerConfig.receiptWidth || '80';
+
+  // Kitchen
+  stgSetKtype(KITCHEN_PRINTER_TYPE, true);
+  var ki = document.getElementById('stg-kitchen-ip');
+  if(ki) ki.value = KITCHEN_PRINTER_IP || '';
+  var ak = document.getElementById('stg-auto-kitchen');
+  if(ak) ak.checked = AUTO_KITCHEN_PRINT;
+
+  // RAWBT
+  var rWidth   = document.getElementById('stg-rawbt-width');
+  var rCopies  = document.getElementById('stg-rawbt-copies');
+  var rRotate  = document.getElementById('stg-rawbt-rotate');
+  var rBeep    = document.getElementById('stg-rawbt-beep');
+  if(rWidth)  rWidth.value    = _rawbtSettings.width   || '80';
+  if(rCopies) rCopies.value   = _rawbtSettings.copies  || 1;
+  if(rRotate) rRotate.checked = !!_rawbtSettings.rotate;
+  if(rBeep)   rBeep.checked   = !!_rawbtSettings.beep;
+
+  _stgCut     = _rawbtSettings.cut     || 'full';
+  _stgDensity = _rawbtSettings.density !== undefined ? String(_rawbtSettings.density) : '0';
+  stgActivatePills('cut-pills',     _stgCut);
+  stgActivatePills('density-pills', _stgDensity);
+
+  // App prefs
+  var sn = document.getElementById('stg-store-name');
+  var st = document.getElementById('stg-store-tagline');
+  var sf = document.getElementById('stg-receipt-footer');
+  var sc = document.getElementById('stg-show-cashier');
+  var sb = document.getElementById('stg-show-table');
+  if(sn) sn.value   = _appPrefs.storeName    || '';
+  if(st) st.value   = _appPrefs.tagline      || '';
+  if(sf) sf.value   = _appPrefs.footer       || '';
+  if(sc) sc.checked = _appPrefs.showCashier !== false;
+  if(sb) sb.checked = _appPrefs.showTable   !== false;
+
+  stgUpdateRawbtPreview();
+}
+
+function stgSetKtype(type, silent){
+  KITCHEN_PRINTER_TYPE = type;
+  var rb  = document.getElementById('stg-kt-rawbt');
+  var wb  = document.getElementById('stg-kt-wifi');
+  var iw  = document.getElementById('stg-kitchen-ip-wrap');
+  var orb = document.getElementById('kp-rawbt-btn');
+  var owb = document.getElementById('kp-wifi-btn');
+  var oip = document.getElementById('ps-kitchen-ip');
+  if(rb) rb.classList.toggle('active', type==='rawbt');
+  if(wb) wb.classList.toggle('active', type==='wifi');
+  if(iw) iw.style.display = type==='wifi' ? '' : 'none';
+  if(orb){ orb.style.borderColor=type==='rawbt'?'#3A6BC5':'#e0e8f5'; orb.style.background=type==='rawbt'?'#e8f0fe':'#fff'; }
+  if(owb){ owb.style.borderColor=type==='wifi' ?'#3A6BC5':'#e0e8f5'; owb.style.background=type==='wifi' ?'#e8f0fe':'#fff'; }
+  if(oip) oip.style.display = type==='wifi' ? 'block':'none';
+}
+
+function stgSetPill(group, value, btn){
+  if(group==='cut')     _stgCut     = value;
+  if(group==='density') _stgDensity = value;
+  var container = btn.closest('.stg-pill-row');
+  if(container) container.querySelectorAll('.stg-pill').forEach(function(p){ p.classList.remove('active'); });
+  btn.classList.add('active');
+  stgUpdateRawbtPreview();
+}
+
+function stgActivatePills(containerId, value){
+  var c = document.getElementById('stg-'+containerId);
+  if(!c) return;
+  var map = {'full':'full cut','partial':'partial cut','none':'no cut','0':'default','1':'light','2':'medium','3':'dark'};
+  var target = (map[value]||value).toLowerCase();
+  c.querySelectorAll('.stg-pill').forEach(function(p){
+    p.classList.toggle('active', p.textContent.trim().toLowerCase()===target);
+  });
+}
+
+function stgUpdateRawbtPreview(){
+  var w  = ((document.getElementById('stg-rawbt-width') ||{}).value)||'80';
+  var n  = parseInt(((document.getElementById('stg-rawbt-copies')||{}).value)||'1')||1;
+  var rt = !!((document.getElementById('stg-rawbt-rotate')||{}).checked);
+  var bp = !!((document.getElementById('stg-rawbt-beep')  ||{}).checked);
+  var params = ['width='+w, 'cut='+_stgCut];
+  if(_stgDensity!=='0') params.push('density='+_stgDensity);
+  if(n>1)  params.push('copies='+n);
+  if(rt)   params.push('rotate=true');
+  if(bp)   params.push('beep=true');
+  var prev = document.getElementById('stg-rawbt-preview');
+  if(prev) prev.textContent = 'rawbt:?'+params.join('&');
+}
+
+function getRawbtParams(){
+  var s = _rawbtSettings;
+  var params = [];
+  if(s.width   && s.width!=='80')    params.push('width='+s.width);
+  if(s.cut     && s.cut!=='full')    params.push('cut='+s.cut);
+  if(s.density && s.density!=='0')   params.push('density='+s.density);
+  if(s.copies  && s.copies>1)        params.push('copies='+s.copies);
+  if(s.rotate)                        params.push('rotate=true');
+  if(s.beep)                          params.push('beep=true');
+  return params.length ? '?'+params.join('&') : '';
+}
+
+function stgSaveReceipt(){
+  RECEIPT_PRINTER_IP = ((document.getElementById('stg-receipt-ip')||{}).value||'').trim();
+  var rw = ((document.getElementById('stg-receipt-width')||{}).value)||'80';
+  _printerConfig.receiptIP    = RECEIPT_PRINTER_IP;
+  _printerConfig.receiptWidth = rw;
+  _savePrinterConfig();
+  var orip = document.getElementById('ps-receipt-ip');
+  if(orip) orip.value = RECEIPT_PRINTER_IP;
+  showToast('✅ Receipt printer settings saved!','success');
+}
+
+function stgSaveKitchen(){
+  KITCHEN_PRINTER_IP = ((document.getElementById('stg-kitchen-ip')||{}).value||'').trim();
+  AUTO_KITCHEN_PRINT = !!((document.getElementById('stg-auto-kitchen')||{}).checked);
+  _printerConfig.kitchenType = KITCHEN_PRINTER_TYPE;
+  _printerConfig.kitchenIP   = KITCHEN_PRINTER_IP;
+  _printerConfig.autoKitchen = AUTO_KITCHEN_PRINT;
+  _savePrinterConfig();
+  var oauto = document.getElementById('ps-auto-kitchen');
+  var okip  = document.getElementById('ps-kitchen-ip');
+  if(oauto) oauto.checked = AUTO_KITCHEN_PRINT;
+  if(okip)  okip.value    = KITCHEN_PRINTER_IP;
+  showToast('✅ Kitchen printer settings saved!','success');
+}
+
+function stgSaveRawbt(){
+  _rawbtSettings.width   = ((document.getElementById('stg-rawbt-width') ||{}).value)||'80';
+  _rawbtSettings.copies  = parseInt(((document.getElementById('stg-rawbt-copies')||{}).value)||'1')||1;
+  _rawbtSettings.cut     = _stgCut;
+  _rawbtSettings.density = _stgDensity;
+  _rawbtSettings.rotate  = !!((document.getElementById('stg-rawbt-rotate')||{}).checked);
+  _rawbtSettings.beep    = !!((document.getElementById('stg-rawbt-beep')  ||{}).checked);
+  _saveRawbtSettings();
+  stgUpdateRawbtPreview();
+  showToast('✅ RAWBT settings saved!','success');
+}
+
+function stgSavePrefs(){
+  _appPrefs.storeName   = ((document.getElementById('stg-store-name')   ||{}).value||'').trim();
+  _appPrefs.tagline     = ((document.getElementById('stg-store-tagline')||{}).value||'').trim();
+  _appPrefs.footer      = ((document.getElementById('stg-receipt-footer')||{}).value||'').trim();
+  _appPrefs.showCashier = !!((document.getElementById('stg-show-cashier')||{}).checked);
+  _appPrefs.showTable   = !!((document.getElementById('stg-show-table')  ||{}).checked);
+  _saveAppPrefs();
+  showToast('✅ App preferences saved!','success');
+}
+
+function stgTestPrinter(type){
+  var ip = type==='receipt'
+    ? ((document.getElementById('stg-receipt-ip')||{}).value||'').trim()
+    : ((document.getElementById('stg-kitchen-ip')||{}).value||'').trim();
+  if(!ip){ showToast('Enter an IP address first.','error'); return; }
+  showToast('Testing '+ip+'…','info');
+  fetch('http://'+ip, {signal:AbortSignal.timeout(3000)})
+    .then(function(){ showToast('✅ Printer at '+ip+' is reachable!','success'); })
+    .catch(function(){ showToast('⚠️ Browser blocked direct test — printer should still work if on same WiFi. Try a test print.','warning'); });
+}
+
+// Wrap showTab to init settings on first open
+(function(){
+  var _origShowTab = showTab;
+  showTab = function(tab, btn){
+    _origShowTab(tab, btn);
+    if(tab === 'settings') initSettingsTab();
+  };
+})();
+
+// Live preview on rawbt field changes
+document.addEventListener('DOMContentLoaded', function(){
+  ['stg-rawbt-width','stg-rawbt-copies','stg-rawbt-rotate','stg-rawbt-beep'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el){ el.addEventListener('change', stgUpdateRawbtPreview); el.addEventListener('input', stgUpdateRawbtPreview); }
+  });
+});
 
 </script>
 </body>
